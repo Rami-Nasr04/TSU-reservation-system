@@ -4,12 +4,14 @@ import { TsunamiWordmark } from "@/components/brand"
 import { AvatarMenu } from "./AvatarMenu"
 
 interface HeaderProps {
+  /** Custom left-slot content. Defaults to <TsunamiWordmark size="sm" />. */
+  left?: React.ReactNode
   center?: React.ReactNode
   actions?: React.ReactNode
   className?: string
 }
 
-export function Header({ center, actions, className }: HeaderProps) {
+export function Header({ left, center, actions, className }: HeaderProps) {
   return (
     <header
       className={cn(
@@ -20,11 +22,11 @@ export function Header({ center, actions, className }: HeaderProps) {
         className,
       )}
     >
-      <div className="flex items-center">
-        <TsunamiWordmark size="sm" />
+      <div className="flex items-center min-w-0">
+        {left ?? <TsunamiWordmark size="sm" />}
       </div>
       <div className="flex items-center justify-center">{center}</div>
-      <div className="flex items-center justify-end gap-1 sm:gap-2.5">
+      <div className="flex items-center justify-end gap-1 sm:gap-2.5 min-w-0">
         {actions}
         <AvatarMenu />
       </div>
