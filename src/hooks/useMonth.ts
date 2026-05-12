@@ -12,26 +12,47 @@ interface UseMonthResult {
   max: number
 }
 
+type State = {
+  data: MonthFeed | null
+  isLoading: boolean
+  error: string | null
+}
+
+type Action =
+  | { type: "loading" }
+  | { type: "success"; payload: MonthFeed }
+  | { type: "error"; message: string }
+
+function reducer(_state: State, action: Action): State {
+  switch (action.type) {
+    case "loading":
+      return { data: null, isLoading: true, error: null }
+    case "success":
+      return { data: action.payload, isLoading: false, error: null }
+    case "error":
+      return { data: null, isLoading: false, error: action.message }
+  }
+}
+
+const initial: State = { data: null, isLoading: true, error: null }
+
 export function useMonth(year: number, month0: number): UseMonthResult {
-  const [data, setData] = React.useState<MonthFeed | null>(null)
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [state, dispatch] = React.useReducer(reducer, initial)
 
   React.useEffect(() => {
     let cancelled = false
-    setIsLoading(true)
-    setError(null)
+    dispatch({ type: "loading" })
     getMonth(year, month0)
       .then((feed) => {
-        if (!cancelled) setData(feed)
+        if (!cancelled) dispatch({ type: "success", payload: feed })
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load month.")
+          dispatch({
+            type: "error",
+            message: err instanceof Error ? err.message : "Failed to load month.",
+          })
         }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false)
       })
     return () => {
       cancelled = true
@@ -39,9 +60,9 @@ export function useMonth(year: number, month0: number): UseMonthResult {
   }, [year, month0])
 
   const max = React.useMemo(() => {
-    if (!data) return 0
-    return data.days.reduce((m, d) => Math.max(m, d.count), 0)
-  }, [data])
+    if (!state.data) return 0
+    return state.data.days.reduce((m, d) => Math.max(m, d.count), 0)
+  }, [state.data])
 
-  return { data, isLoading, error, max }
+  return { data: state.data, isLoading: state.isLoading, error: state.error, max }
 }
