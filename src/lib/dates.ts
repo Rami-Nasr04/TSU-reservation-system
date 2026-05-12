@@ -51,3 +51,48 @@ export function shiftMonth(
   const d = new Date(year, month0 + delta, 1)
   return { year: d.getFullYear(), month0: d.getMonth() }
 }
+
+/** Parse YYYY-MM-DD into local-date parts. Returns null if invalid. */
+export function parseDateISO(
+  iso: string,
+): { year: number; month0: number; day: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (!m) return null
+  const year = Number(m[1])
+  const month0 = Number(m[2]) - 1
+  const day = Number(m[3])
+  if (month0 < 0 || month0 > 11) return null
+  const d = new Date(year, month0, day)
+  if (
+    d.getFullYear() !== year ||
+    d.getMonth() !== month0 ||
+    d.getDate() !== day
+  ) {
+    return null
+  }
+  return { year, month0, day }
+}
+
+/** "Tue, May 12" style label for the day stepper. */
+export function dayLabel(year: number, month0: number, day: number): string {
+  return new Date(year, month0, day).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
+}
+
+/** "MAY 2026" style label for the back-link to the calendar (upper-cased). */
+export function monthLinkLabel(year: number, month0: number): string {
+  return new Date(year, month0, 1)
+    .toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    .toUpperCase()
+}
+
+/** Shift a YYYY-MM-DD by N days, returning a new YYYY-MM-DD. */
+export function shiftDateISO(iso: string, deltaDays: number): string {
+  const parts = parseDateISO(iso)
+  if (!parts) return iso
+  const d = new Date(parts.year, parts.month0, parts.day + deltaDays)
+  return formatDateISO(d.getFullYear(), d.getMonth(), d.getDate())
+}
