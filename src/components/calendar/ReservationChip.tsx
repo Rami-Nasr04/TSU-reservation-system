@@ -16,7 +16,7 @@ export function ReservationChip({
     <div
       className={cn(
         "truncate rounded-[2px] border border-hair bg-card/80 leading-[1.3] tracking-[0.02em]",
-        compact ? "px-1.5 py-[2px] text-[10px]" : "px-1.5 py-[3px] text-[10.5px]",
+        compact ? "px-1.5 py-[1px] text-[10px]" : "px-1.5 py-[2px] text-[10.5px]",
         muted ? "text-brand-ink-mute" : "text-foreground",
       )}
     >

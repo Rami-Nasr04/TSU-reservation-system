@@ -18,14 +18,14 @@ interface DayCellProps {
 
 const MIN_H: Record<DayCellVariant, string> = {
   mobile: "min-h-16",
-  tablet: "min-h-[7.5rem]",
-  desktop: "min-h-[8.5rem]",
+  tablet: "min-h-[6rem]",
+  desktop: "min-h-[6.75rem]",
 }
 
 const PAD: Record<DayCellVariant, string> = {
   mobile: "p-1.5 pb-2",
-  tablet: "px-2.5 py-2",
-  desktop: "px-3 py-2.5",
+  tablet: "px-2.5 py-1.5",
+  desktop: "px-3 py-1.5",
 }
 
 export function DayCell({
@@ -41,8 +41,9 @@ export function DayCell({
   const isClosed = !empty && day.count === 0
   const showChips = variant !== "mobile" && !empty && !isClosed
 
-  const visibleChips = !empty && !isClosed ? day.items.slice(0, 3) : []
-  const extra = !empty && !isClosed ? Math.max(0, day.count - 3) : 0
+  const maxChips = variant === "tablet" ? 2 : 3
+  const visibleChips = !empty && !isClosed ? day.items.slice(0, maxChips) : []
+  const extra = !empty && !isClosed ? Math.max(0, day.count - maxChips) : 0
 
   // Heatmap intensity: 0..15% brand-red alpha, scaled by count/max.
   const intensity =
@@ -113,8 +114,14 @@ export function DayCell({
 
       {/* closed label */}
       {isClosed && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Overline size="xs" tone="mute" className="tracking-[0.3em]">
+        <div className="absolute inset-0 flex items-center justify-center px-1">
+          <Overline
+            size="xs"
+            tone="mute"
+            className={cn(
+              variant === "mobile" ? "tracking-[0.12em]" : "tracking-[0.3em]",
+            )}
+          >
             Closed
           </Overline>
         </div>
@@ -124,8 +131,8 @@ export function DayCell({
       {showChips && (
         <div
           className={cn(
-            "relative flex flex-col gap-[3px]",
-            variant === "tablet" ? "mt-1.5" : "mt-2.5",
+            "relative flex flex-col gap-[2px]",
+            variant === "tablet" ? "mt-1" : "mt-1.5",
           )}
         >
           {visibleChips.map((it, i) => (
@@ -139,7 +146,7 @@ export function DayCell({
           {extra > 0 && (
             <div
               className={cn(
-                "mt-0.5 pl-0.5 tracking-[0.04em]",
+                "pl-0.5 tracking-[0.04em]",
                 variant === "tablet" ? "text-[10px]" : "text-[10.5px]",
                 isPast ? "text-brand-ink-mute" : "text-brand-ink-soft",
               )}

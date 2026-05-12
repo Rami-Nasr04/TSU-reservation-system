@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { toast } from "sonner"
 
 import { AppShell } from "@/components/layout/AppShell"
+import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { KpiStrip } from "@/components/calendar/KpiStrip"
 import { Legend } from "@/components/calendar/Legend"
 import { MonthGrid } from "@/components/calendar/MonthGrid"
@@ -53,7 +54,7 @@ export default function Calendar() {
       <div
         className={cn(
           "text-center font-light tracking-[0.04em] text-foreground",
-          "min-w-[108px] sm:min-w-[150px]",
+          "min-w-[84px] sm:min-w-[150px]",
           isMobile ? "text-[15px]" : "text-[18px]",
         )}
       >
@@ -76,12 +77,15 @@ export default function Calendar() {
           Today
         </button>
       )}
-      <IconButton
-        aria-label="Search"
-        onClick={() => toast.info("Search is coming with the DayBoard.")}
-      >
-        <Search className="size-3.5 sm:size-4" />
-      </IconButton>
+      {!isMobile && (
+        <IconButton
+          aria-label="Search"
+          onClick={() => toast.info("Search is coming with the DayBoard.")}
+        >
+          <Search className="size-3.5 sm:size-4" />
+        </IconButton>
+      )}
+      <ThemeToggle />
     </>
   )
 

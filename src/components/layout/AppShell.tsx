@@ -20,8 +20,8 @@ export function AppShell({
       <Header center={headerCenter} actions={headerActions} />
       <main
         className={cn(
-          "px-3.5 sm:px-7 lg:px-10 py-4 sm:py-5 lg:py-6",
-          "flex flex-col gap-3 sm:gap-5",
+          "px-3.5 sm:px-7 lg:px-10 py-3 sm:py-4",
+          "flex flex-col gap-3 sm:gap-3",
           className,
         )}
       >
