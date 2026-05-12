@@ -1,23 +1,17 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom"
 import { Toaster } from "sonner"
 
 import { AuthProvider, useAuth } from "@/contexts/AuthContext"
 import Login from "@/pages/Login"
+import Calendar from "@/pages/Calendar"
 
-function HomePlaceholder() {
-  const { user, signOut } = useAuth()
+function DayPlaceholder() {
+  const { date } = useParams()
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background bg-pinstripe text-foreground">
+    <div className="flex min-h-dvh items-center justify-center bg-background bg-pinstripe text-foreground">
       <p className="text-sm tracking-[0.22em] uppercase text-brand-ink-mute">
-        Signed in as {user?.email}
+        DayBoard — {date} (coming next)
       </p>
-      <button
-        type="button"
-        onClick={() => signOut()}
-        className="h-9 rounded-[3px] border border-hair-strong bg-card px-4 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground hover:bg-muted"
-      >
-        Sign out
-      </button>
     </div>
   )
 }
@@ -55,7 +49,15 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <HomePlaceholder />
+                <Calendar />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/day/:date"
+            element={
+              <ProtectedRoute>
+                <DayPlaceholder />
               </ProtectedRoute>
             }
           />
