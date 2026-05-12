@@ -21,7 +21,7 @@ export function AppShell({
       <main
         className={cn(
           "px-3.5 sm:px-7 lg:px-10 py-4 sm:py-5 lg:py-6",
-          "flex flex-col gap-3 sm:gap-4.5",
+          "flex flex-col gap-3 sm:gap-5",
           className,
         )}
       >

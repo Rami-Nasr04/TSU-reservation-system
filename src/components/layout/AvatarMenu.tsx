@@ -34,17 +34,18 @@ export function AvatarMenu({ className }: AvatarMenuProps) {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full p-1 pr-1.5 outline-none",
-          "focus-visible:ring-2 focus-visible:ring-primary/40",
+          "inline-flex items-center gap-1.5 rounded-full p-1 pr-1.5 outline-none transition-colors duration-150",
+          "hover:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-primary/40",
           className,
         )}
+        aria-label="Open user menu"
       >
         <span className="inline-flex size-8 items-center justify-center rounded-full bg-foreground text-background text-[11.5px] font-medium tracking-[0.08em]">
           {initialsOf(user.name)}
         </span>
         <ChevronDown className="size-3 text-brand-ink-soft" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6} className="w-50">
+      <DropdownMenuContent align="end" sideOffset={6} className="w-48">
         <DropdownMenuLabel className="flex flex-col gap-0.5">
           <span className="text-[13px] font-normal text-foreground">
             {user.name}
