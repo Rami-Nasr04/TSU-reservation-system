@@ -1,4 +1,4 @@
-import { daysInMonth, dayOfWeek } from "@/lib/dates"
+import { dayOfWeek, daysInMonth, firstWeekdayOfMonth } from "@/lib/dates"
 
 export interface ReservationItem {
   time: string // "HH:mm"
@@ -33,9 +33,8 @@ const TIMES = [
 ]
 
 function mulberry32(seed: number): () => number {
-  let a = seed
+  let a = seed | 0
   return () => {
-    a |= 0
     a = (a + 0x6d2b79f5) | 0
     let t = a
     t = Math.imul(t ^ (t >>> 15), t | 1)
@@ -86,7 +85,7 @@ export async function getMonth(year: number, month0: number): Promise<MonthFeed>
     year,
     month0,
     daysInMonth: daysInMonth(year, month0),
-    firstWeekday: new Date(year, month0, 1).getDay(),
+    firstWeekday: firstWeekdayOfMonth(year, month0),
     days: generateMonth(year, month0),
   }
 }

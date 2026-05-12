@@ -23,10 +23,10 @@ type Action =
   | { type: "success"; payload: MonthFeed }
   | { type: "error"; message: string }
 
-function reducer(_state: State, action: Action): State {
+function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "loading":
-      return { data: null, isLoading: true, error: null }
+      return { ...state, isLoading: true, error: null }
     case "success":
       return { data: action.payload, isLoading: false, error: null }
     case "error":

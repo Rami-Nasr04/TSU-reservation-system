@@ -17,13 +17,12 @@ export async function apiFetch<T>(
     }
   }
   try {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(init?.headers ?? {}),
-      },
-    })
+    const method = (init?.method ?? "GET").toUpperCase()
+    const headers: Record<string, string> = { ...(init?.headers as Record<string, string> | undefined ?? {}) }
+    if (method !== "GET" && method !== "HEAD" && !headers["Content-Type"]) {
+      headers["Content-Type"] = "application/json"
+    }
+    const res = await fetch(`${BASE_URL}${path}`, { ...init, headers })
     const body = (await res.json()) as ApiResponse<T>
     return body
   } catch (err) {
