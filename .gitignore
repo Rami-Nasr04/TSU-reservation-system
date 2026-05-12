@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Local-only: project instructions, secrets, AWS keys, design notes
+/local/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
