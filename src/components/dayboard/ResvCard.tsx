@@ -2,7 +2,8 @@ import { ChevronRight, Crown } from "lucide-react"
 import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
-import { StatusBadge, STATUS_STYLE } from "./StatusBadge"
+import { StatusBadge } from "./StatusBadge"
+import { STATUS_STYLE } from "./statusStyle"
 import type { Reservation } from "@/services/reservationsService"
 
 interface ResvCardProps {
