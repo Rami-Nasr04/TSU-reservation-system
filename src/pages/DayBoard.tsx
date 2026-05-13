@@ -13,6 +13,7 @@ import { FloorView } from "@/components/dayboard/FloorView"
 import { MobileListTrigger } from "@/components/dayboard/MobileListTrigger"
 import { WalkInDialog } from "@/components/reservations/WalkInDialog"
 import { ReservationForm } from "@/components/reservations/ReservationForm"
+import { CheckoutDialog } from "@/components/reservations/CheckoutDialog"
 import {
   Drawer,
   DrawerContent,
@@ -40,6 +41,7 @@ type ModalState =
   | { kind: "none" }
   | { kind: "walkin"; tableId: string }
   | { kind: "reservation"; tableId?: string; reservation?: Reservation }
+  | { kind: "checkout"; reservation: Reservation }
 
 // ---------------------------------------------------------------------------
 // Hooks
@@ -154,6 +156,13 @@ export default function DayBoard() {
     })
   }
 
+  function handleCheckout() {
+    if (modal.kind !== "reservation" || !modal.reservation) return
+    const reservation = modal.reservation
+    setModalRevision((r) => r + 1)
+    setModal({ kind: "checkout", reservation })
+  }
+
   function closeModal() {
     setModal({ kind: "none" })
   }
@@ -251,6 +260,16 @@ export default function DayBoard() {
           onClose={closeModal}
           date={date}
           initialTableId={modal.tableId}
+          reservation={modal.reservation}
+          onSave={handleSave}
+          onCheckout={handleCheckout}
+        />
+      )}
+      {modal.kind === "checkout" && (
+        <CheckoutDialog
+          key={modalRevision}
+          open
+          onClose={closeModal}
           reservation={modal.reservation}
           onSave={handleSave}
         />

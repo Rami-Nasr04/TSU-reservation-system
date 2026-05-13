@@ -1,9 +1,10 @@
 import * as React from "react"
-import { ChevronDown, Crown, Minus, Plus } from "lucide-react"
+import { Check, ChevronDown, Crown, Minus, Plus } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { reservationTimeSlots } from "@/lib/dates"
 import { bucketShift } from "@/services/reservationsService"
+import { lookupCustomer } from "@/services/customersService"
 import type {
   Reservation,
   ReservationOccasion,
@@ -26,6 +27,7 @@ interface ReservationFormProps {
   initialTableId?: string
   reservation?: Reservation
   onSave: (r: Reservation) => void
+  onCheckout?: () => void
 }
 
 const INPUT_CLASS = cn(
@@ -68,6 +70,7 @@ export function ReservationForm({
   initialTableId,
   reservation,
   onSave,
+  onCheckout,
 }: ReservationFormProps) {
   const isEdit = Boolean(reservation)
 
@@ -91,8 +94,22 @@ export function ReservationForm({
   )
   const [notes, setNotes] = React.useState<string>(reservation?.notes ?? "")
   const [nameInvalid, setNameInvalid] = React.useState(false)
+  const [lookupFound, setLookupFound] = React.useState(false)
 
   const nameRef = React.useRef<HTMLInputElement>(null)
+  // Snapshot refs let the phone lookup effect read current field values
+  // without being in the effect deps (which would re-trigger on every auto-fill).
+  const nameSnap = React.useRef(name)
+  const emailSnap = React.useRef(email)
+  const vipSnap = React.useRef(vip)
+
+  // Writing to ref.current is only allowed outside render (in effects / handlers).
+  React.useLayoutEffect(() => {
+    nameSnap.current = name
+    emailSnap.current = email
+    vipSnap.current = vip
+  })
+
   const slots = React.useMemo(() => reservationTimeSlots(), [])
 
   const primaryTableId = tables[0] ?? initialTableId ?? ""
@@ -101,6 +118,28 @@ export function ReservationForm({
       primaryTableId ? getMergeableSiblings(primaryTableId).length > 0 : false,
     [primaryTableId],
   )
+
+  // Debounced customer lookup — only for new reservations.
+  // setState calls are inside async callbacks (not synchronous in effect body).
+  React.useEffect(() => {
+    if (isEdit) return
+    const timer = setTimeout(() => {
+      const normalized = phone.replace(/[\s\-.()]/g, "")
+      if (normalized.length < 8) {
+        setLookupFound(false)
+        return
+      }
+      void lookupCustomer(phone).then((customer) => {
+        setLookupFound(Boolean(customer))
+        if (customer) {
+          if (!nameSnap.current.trim()) setName(customer.name)
+          if (!emailSnap.current.trim() && customer.email) setEmail(customer.email)
+          if (!vipSnap.current && customer.vip) setVip(true)
+        }
+      })
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [phone, isEdit])
 
   function handleClose() {
     onClose()
@@ -151,16 +190,41 @@ export function ReservationForm({
     handleClose()
   }
 
+  function handleSeat() {
+    if (!validate()) return
+    onSave(buildReservation("seated"))
+    handleClose()
+  }
+
+  function handleNoShow() {
+    if (!reservation) return
+    onSave({ ...reservation, status: "noshow" })
+    handleClose()
+  }
+
   function handleCancelReservation() {
     if (!reservation) return
     onSave(buildReservation("cancelled"))
     handleClose()
   }
 
+  function handleCheckoutClick() {
+    onCheckout?.()
+  }
+
   const canCancelReservation =
     isEdit &&
     reservation !== undefined &&
     (reservation.status === "booked" || reservation.status === "seated")
+  const canSeat = isEdit && reservation?.status === "booked"
+  const canNoShow = isEdit && reservation?.status === "booked"
+  const canCheckout = isEdit && reservation?.status === "seated"
+  const isTerminal =
+    isEdit &&
+    (reservation?.status === "completed" ||
+      reservation?.status === "cancelled" ||
+      reservation?.status === "noshow")
+  const hasLeftActions = canCancelReservation || canNoShow
 
   const title = isEdit
     ? `Edit — ${reservation?.name ?? ""}`
@@ -193,6 +257,12 @@ export function ReservationForm({
               placeholder="03-XXX XXX"
               className={INPUT_CLASS}
             />
+            {lookupFound && (
+              <span className="flex items-center gap-1 text-[10px] text-emerald-600">
+                <Check className="size-3" />
+                Customer found
+              </span>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
@@ -408,26 +478,45 @@ export function ReservationForm({
         </section>
 
         <DialogFooter
-          className={cn(
-            isEdit && canCancelReservation && "sm:justify-between",
-          )}
+          className={cn(isEdit && hasLeftActions && "sm:justify-between")}
         >
           {isEdit ? (
             <>
-              {canCancelReservation && (
-                <button
-                  type="button"
-                  onClick={handleCancelReservation}
-                  className={cn(
-                    "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
-                    "text-destructive border border-destructive/30",
-                    "hover:bg-destructive/10 transition-colors duration-150",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+              {/* Destructive / status-change actions — left side on desktop */}
+              {hasLeftActions && (
+                <div className="flex flex-wrap gap-2">
+                  {canNoShow && (
+                    <button
+                      type="button"
+                      onClick={handleNoShow}
+                      className={cn(
+                        "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
+                        "border border-hair text-brand-ink-soft",
+                        "hover:text-destructive hover:border-destructive/30 transition-colors duration-150",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                      )}
+                    >
+                      No-show
+                    </button>
                   )}
-                >
-                  Cancel Reservation
-                </button>
+                  {canCancelReservation && (
+                    <button
+                      type="button"
+                      onClick={handleCancelReservation}
+                      className={cn(
+                        "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
+                        "text-destructive border border-destructive/30",
+                        "hover:bg-destructive/10 transition-colors duration-150",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                      )}
+                    >
+                      Cancel Reservation
+                    </button>
+                  )}
+                </div>
               )}
+
+              {/* Primary actions — right side */}
               <div className="flex gap-2 sm:justify-end">
                 <button
                   type="button"
@@ -441,18 +530,48 @@ export function ReservationForm({
                 >
                   Close
                 </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  className={cn(
-                    "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
-                    "bg-primary text-primary-foreground",
-                    "hover:bg-brand-red-dark transition-colors duration-150",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                  )}
-                >
-                  Update
-                </button>
+                {!isTerminal && (
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className={cn(
+                      "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
+                      "border border-hair-strong text-foreground",
+                      "hover:border-foreground/30 transition-colors duration-150",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                    )}
+                  >
+                    Update
+                  </button>
+                )}
+                {canSeat && (
+                  <button
+                    type="button"
+                    onClick={handleSeat}
+                    className={cn(
+                      "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
+                      "bg-primary text-primary-foreground",
+                      "hover:bg-brand-red-dark transition-colors duration-150",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                    )}
+                  >
+                    Seat
+                  </button>
+                )}
+                {canCheckout && (
+                  <button
+                    type="button"
+                    onClick={handleCheckoutClick}
+                    className={cn(
+                      "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
+                      "bg-primary text-primary-foreground",
+                      "hover:bg-brand-red-dark transition-colors duration-150",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                    )}
+                  >
+                    Checkout
+                  </button>
+                )}
               </div>
             </>
           ) : (
