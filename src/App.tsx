@@ -1,21 +1,11 @@
-import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom"
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { Toaster } from "sonner"
 
 import { AuthProvider, useAuth } from "@/contexts/AuthContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
 import Login from "@/pages/Login"
 import Calendar from "@/pages/Calendar"
-
-function DayPlaceholder() {
-  const { date } = useParams()
-  return (
-    <div className="flex min-h-dvh items-center justify-center bg-background bg-pinstripe text-foreground">
-      <p className="text-sm tracking-[0.22em] uppercase text-brand-ink-mute">
-        DayBoard — {date} (coming next)
-      </p>
-    </div>
-  )
-}
+import DayBoard from "@/pages/DayBoard"
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -59,7 +49,7 @@ function App() {
               path="/day/:date"
               element={
                 <ProtectedRoute>
-                  <DayPlaceholder />
+                  <DayBoard />
                 </ProtectedRoute>
               }
             />
