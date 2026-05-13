@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Check, ChevronDown, Crown, Minus, Plus } from "lucide-react"
+import { Check, Crown, Minus, Plus } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { reservationTimeSlots } from "@/lib/dates"
@@ -18,6 +18,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { MergePicker } from "./MergePicker"
 
 interface ReservationFormProps {
@@ -42,13 +52,17 @@ const SECTION_HEADER_CLASS = cn(
   "text-[10px] uppercase tracking-[0.22em] text-brand-ink-mute",
 )
 
-const OCCASIONS: { value: ReservationOccasion | ""; label: string }[] = [
-  { value: "", label: "None" },
-  { value: "birthday", label: "Birthday" },
-  { value: "anniversary", label: "Anniversary" },
-  { value: "business", label: "Business" },
-  { value: "other", label: "Other" },
-]
+// Override shadcn SelectTrigger defaults to match the form's input style.
+// !h-9 forces height over the component's data-[size=default]:h-8 conditional.
+const SELECT_TRIGGER_CLASS = cn(
+  "!h-9 w-full rounded-[3px] bg-foreground/[0.03] px-3 text-[12.5px] font-light",
+  "border border-hair text-foreground",
+  "focus-visible:border-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
+)
+
+const SELECT_CONTENT_CLASS = "rounded-[3px] border border-hair"
+const SELECT_ITEM_CLASS = "text-[12.5px]"
+const SELECT_LABEL_CLASS = "text-[10px] uppercase tracking-[0.18em] text-brand-ink-mute"
 
 function formatDateLabel(iso: string): string {
   const parts = iso.split("-").map(Number)
@@ -337,28 +351,21 @@ export function ReservationForm({
             <label htmlFor="rf-time" className={LABEL_CLASS}>
               Time
             </label>
-            <div className="relative">
-              <select
-                id="rf-time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className={cn(
-                  "h-9 w-full rounded-[3px] bg-foreground/[0.03] px-3 pr-8 text-[12.5px] font-light",
-                  "border border-hair text-foreground",
-                  "focus-visible:border-foreground focus-visible:outline-none appearance-none",
-                )}
+            <Select value={time} onValueChange={setTime}>
+              <SelectTrigger id="rf-time" className={SELECT_TRIGGER_CLASS}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="popper"
+                className={cn(SELECT_CONTENT_CLASS, "max-h-60")}
               >
                 {slots.map((s) => (
-                  <option key={s} value={s}>
+                  <SelectItem key={s} value={s} className={SELECT_ITEM_CLASS}>
                     {s}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
-              <ChevronDown
-                aria-hidden="true"
-                className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-brand-ink-mute"
-              />
-            </div>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -402,48 +409,46 @@ export function ReservationForm({
             <label htmlFor="rf-table" className={LABEL_CLASS}>
               Table
             </label>
-            <div className="relative">
-              <select
-                id="rf-table"
-                value={tables[0] ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value
-                  setTables(v ? [v] : [])
-                }}
-                className={cn(
-                  "h-9 w-full rounded-[3px] bg-foreground/[0.03] px-3 pr-8 text-[12.5px] font-light",
-                  "border border-hair text-foreground",
-                  "focus-visible:border-foreground focus-visible:outline-none appearance-none",
-                )}
-              >
-                <option value="">Unassigned</option>
-                <optgroup label="Bar">
+            <Select
+              value={tables[0] ?? "unassigned"}
+              onValueChange={(v) => setTables(v === "unassigned" ? [] : [v])}
+            >
+              <SelectTrigger id="rf-table" className={SELECT_TRIGGER_CLASS}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" className={SELECT_CONTENT_CLASS}>
+                <SelectItem value="unassigned" className={cn(SELECT_ITEM_CLASS, "text-brand-ink-mute")}>
+                  Unassigned
+                </SelectItem>
+                <SelectSeparator />
+                <SelectGroup>
+                  <SelectLabel className={SELECT_LABEL_CLASS}>Bar</SelectLabel>
                   {BAR_TABLES.map((t) => (
-                    <option key={t.id} value={t.id}>
+                    <SelectItem key={t.id} value={t.id} className={SELECT_ITEM_CLASS}>
                       Seat {t.id}
-                    </option>
+                    </SelectItem>
                   ))}
-                </optgroup>
-                <optgroup label="Indoor">
+                </SelectGroup>
+                <SelectSeparator />
+                <SelectGroup>
+                  <SelectLabel className={SELECT_LABEL_CLASS}>Indoor</SelectLabel>
                   {INDOOR_TABLES.map((t) => (
-                    <option key={t.id} value={t.id}>
+                    <SelectItem key={t.id} value={t.id} className={SELECT_ITEM_CLASS}>
                       Table {t.id} · {t.capacity} seats
-                    </option>
+                    </SelectItem>
                   ))}
-                </optgroup>
-                <optgroup label="Terrace">
+                </SelectGroup>
+                <SelectSeparator />
+                <SelectGroup>
+                  <SelectLabel className={SELECT_LABEL_CLASS}>Terrace</SelectLabel>
                   {TERRACE_TABLES.map((t) => (
-                    <option key={t.id} value={t.id}>
+                    <SelectItem key={t.id} value={t.id} className={SELECT_ITEM_CLASS}>
                       Table {t.id} · {t.capacity} seats
-                    </option>
+                    </SelectItem>
                   ))}
-                </optgroup>
-              </select>
-              <ChevronDown
-                aria-hidden="true"
-                className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-brand-ink-mute"
-              />
-            </div>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             {tables.length > 1 && (
               <div className="flex flex-wrap gap-1.5 mt-1">
                 {tables.slice(1).map((t) => (
@@ -474,30 +479,23 @@ export function ReservationForm({
             <label htmlFor="rf-occasion" className={LABEL_CLASS}>
               Occasion
             </label>
-            <div className="relative">
-              <select
-                id="rf-occasion"
-                value={occasion}
-                onChange={(e) =>
-                  setOccasion(e.target.value as ReservationOccasion | "")
-                }
-                className={cn(
-                  "h-9 w-full rounded-[3px] bg-foreground/[0.03] px-3 pr-8 text-[12.5px] font-light",
-                  "border border-hair text-foreground",
-                  "focus-visible:border-foreground focus-visible:outline-none appearance-none",
-                )}
-              >
-                {OCCASIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                aria-hidden="true"
-                className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-brand-ink-mute"
-              />
-            </div>
+            <Select
+              value={occasion || "none"}
+              onValueChange={(v) =>
+                setOccasion(v === "none" ? "" : (v as ReservationOccasion))
+              }
+            >
+              <SelectTrigger id="rf-occasion" className={SELECT_TRIGGER_CLASS}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" className={SELECT_CONTENT_CLASS}>
+                <SelectItem value="none" className={SELECT_ITEM_CLASS}>None</SelectItem>
+                <SelectItem value="birthday" className={SELECT_ITEM_CLASS}>Birthday</SelectItem>
+                <SelectItem value="anniversary" className={SELECT_ITEM_CLASS}>Anniversary</SelectItem>
+                <SelectItem value="business" className={SELECT_ITEM_CLASS}>Business</SelectItem>
+                <SelectItem value="other" className={SELECT_ITEM_CLASS}>Other</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-1">
