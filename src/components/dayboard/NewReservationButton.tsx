@@ -1,21 +1,17 @@
 import { Plus } from "lucide-react"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 interface NewReservationButtonProps {
   isMobile?: boolean
+  onClick: () => void
 }
 
-function noop() {
-  toast.info("New Reservation form opens in the next slice.")
-}
-
-export function NewReservationButton({ isMobile }: NewReservationButtonProps) {
+export function NewReservationButton({ isMobile, onClick }: NewReservationButtonProps) {
   if (isMobile) {
     return (
       <button
         type="button"
-        onClick={noop}
+        onClick={onClick}
         aria-label="New reservation"
         className={cn(
           "inline-flex size-8 items-center justify-center rounded-[3px]",
@@ -30,7 +26,7 @@ export function NewReservationButton({ isMobile }: NewReservationButtonProps) {
   return (
     <button
       type="button"
-      onClick={noop}
+      onClick={onClick}
       className={cn(
         "inline-flex h-8 items-center gap-2 rounded-[3px] px-3.5",
         "bg-primary text-primary-foreground transition-colors duration-150",

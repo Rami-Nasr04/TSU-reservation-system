@@ -1,4 +1,3 @@
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import type { Reservation } from "@/services/reservationsService"
 import { deriveCellState, type CellState } from "./cellState"
@@ -6,9 +5,10 @@ import { deriveCellState, type CellState } from "./cellState"
 interface BarSeatProps {
   seatId: string
   reservations: Reservation[]
+  onTableClick: (tableId: string, resv?: Reservation) => void
 }
 
-export function BarSeat({ seatId, reservations }: BarSeatProps) {
+export function BarSeat({ seatId, reservations, onTableClick }: BarSeatProps) {
   const { state, resv } = deriveCellState(seatId, reservations)
 
   const shellByState: Record<CellState, string> = {
@@ -21,9 +21,7 @@ export function BarSeat({ seatId, reservations }: BarSeatProps) {
   return (
     <button
       type="button"
-      onClick={() =>
-        toast.info(`Bar ${seatId} — open reservation form (next slice).`)
-      }
+      onClick={() => onTableClick(seatId, resv)}
       title={`Bar ${seatId}${resv ? ` · ${resv.time} ${resv.name}` : ""}`}
       className={cn(
         "relative inline-flex size-11 items-center justify-center rounded-full",

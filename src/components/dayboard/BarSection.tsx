@@ -4,9 +4,10 @@ import type { Reservation } from "@/services/reservationsService"
 
 interface BarSectionProps {
   reservations: Reservation[]
+  onTableClick: (tableId: string, resv?: Reservation) => void
 }
 
-export function BarSection({ reservations }: BarSectionProps) {
+export function BarSection({ reservations, onTableClick }: BarSectionProps) {
   return (
     <section>
       <header className="mb-3.5 flex items-baseline gap-3">
@@ -24,7 +25,12 @@ export function BarSection({ reservations }: BarSectionProps) {
         />
         <div className="flex flex-wrap gap-2">
           {BAR_TABLES.map((s) => (
-            <BarSeat key={s.id} seatId={s.id} reservations={reservations} />
+            <BarSeat
+              key={s.id}
+              seatId={s.id}
+              reservations={reservations}
+              onTableClick={onTableClick}
+            />
           ))}
         </div>
       </div>

@@ -1,4 +1,3 @@
-import { toast } from "sonner"
 import { Crown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -10,9 +9,10 @@ interface TableButtonProps {
   def: TableDef
   reservations: Reservation[]
   isMobile?: boolean
+  onTableClick: (tableId: string, resv?: Reservation) => void
 }
 
-export function TableButton({ def, reservations, isMobile }: TableButtonProps) {
+export function TableButton({ def, reservations, isMobile, onTableClick }: TableButtonProps) {
   const { state, resv } = deriveCellState(def.id, reservations)
 
   const sizeClass = isMobile ? "size-[86px]" : "size-[116px]"
@@ -28,9 +28,7 @@ export function TableButton({ def, reservations, isMobile }: TableButtonProps) {
   return (
     <button
       type="button"
-      onClick={() =>
-        toast.info(`Table ${def.id} — open reservation form (next slice).`)
-      }
+      onClick={() => onTableClick(def.id, resv)}
       title={`Table ${def.id} · seats ${def.capacity}${
         resv ? ` · ${resv.time} ${resv.name}` : ""
       }`}

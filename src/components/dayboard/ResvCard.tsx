@@ -1,5 +1,4 @@
 import { ChevronRight, Crown } from "lucide-react"
-import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
 import { StatusBadge } from "./StatusBadge"
@@ -8,18 +7,17 @@ import type { Reservation } from "@/services/reservationsService"
 
 interface ResvCardProps {
   reservation: Reservation
+  onReservationClick: (r: Reservation) => void
 }
 
-export function ResvCard({ reservation: r }: ResvCardProps) {
+export function ResvCard({ reservation: r, onReservationClick }: ResvCardProps) {
   const past =
     r.status === "completed" || r.status === "cancelled" || r.status === "noshow"
   const meta = STATUS_STYLE[r.status]
   return (
     <button
       type="button"
-      onClick={() =>
-        toast.info("Reservation detail / edit lands in the next slice.")
-      }
+      onClick={() => onReservationClick(r)}
       className={cn(
         "group/resv relative w-full text-left",
         "flex items-stretch border-b border-hair bg-card",

@@ -1,0 +1,490 @@
+import * as React from "react"
+import { ChevronDown, Crown, Minus, Plus } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import { reservationTimeSlots } from "@/lib/dates"
+import { bucketShift } from "@/services/reservationsService"
+import type {
+  Reservation,
+  ReservationOccasion,
+} from "@/services/reservationsService"
+import { getMergeableSiblings } from "@/lib/tables"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { MergePicker } from "./MergePicker"
+
+interface ReservationFormProps {
+  open: boolean
+  onClose: () => void
+  date: string
+  initialTableId?: string
+  reservation?: Reservation
+  onSave: (r: Reservation) => void
+}
+
+const INPUT_CLASS = cn(
+  "h-9 w-full rounded-[3px] bg-foreground/[0.03] px-3 text-[12.5px] font-light",
+  "border border-hair text-foreground placeholder:text-brand-ink-mute",
+  "focus-visible:border-foreground focus-visible:outline-none",
+)
+
+const LABEL_CLASS = "text-[10px] uppercase tracking-[0.22em] text-brand-ink-mute"
+
+const SECTION_HEADER_CLASS = cn(
+  "text-[10px] uppercase tracking-[0.22em] text-brand-ink-mute",
+)
+
+const OCCASIONS: { value: ReservationOccasion | ""; label: string }[] = [
+  { value: "", label: "None" },
+  { value: "birthday", label: "Birthday" },
+  { value: "anniversary", label: "Anniversary" },
+  { value: "business", label: "Business" },
+  { value: "other", label: "Other" },
+]
+
+function formatDateLabel(iso: string): string {
+  const parts = iso.split("-").map(Number)
+  if (parts.length !== 3) return iso
+  const d = new Date(parts[0], parts[1] - 1, parts[2])
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
+}
+
+const DEFAULT_TIME = reservationTimeSlots()[4]
+
+export function ReservationForm({
+  open,
+  onClose,
+  date,
+  initialTableId,
+  reservation,
+  onSave,
+}: ReservationFormProps) {
+  const isEdit = Boolean(reservation)
+
+  const initialTables = React.useMemo<string[]>(() => {
+    if (reservation) return reservation.tables
+    if (initialTableId) return [initialTableId]
+    return []
+  }, [reservation, initialTableId])
+
+  const [phone, setPhone] = React.useState<string>("")
+  const [name, setName] = React.useState<string>(reservation?.name ?? "")
+  const [email, setEmail] = React.useState<string>("")
+  const [vip, setVip] = React.useState<boolean>(reservation?.vip ?? false)
+  const [time, setTime] = React.useState<string>(
+    reservation?.time ?? DEFAULT_TIME,
+  )
+  const [pax, setPax] = React.useState<number>(reservation?.pax ?? 2)
+  const [tables, setTables] = React.useState<string[]>(initialTables)
+  const [occasion, setOccasion] = React.useState<ReservationOccasion | "">(
+    reservation?.occasion ?? "",
+  )
+  const [notes, setNotes] = React.useState<string>(reservation?.notes ?? "")
+  const [nameInvalid, setNameInvalid] = React.useState(false)
+
+  const nameRef = React.useRef<HTMLInputElement>(null)
+  const slots = React.useMemo(() => reservationTimeSlots(), [])
+
+  const primaryTableId = tables[0] ?? initialTableId ?? ""
+  const mergeableAvailable = React.useMemo(
+    () =>
+      primaryTableId ? getMergeableSiblings(primaryTableId).length > 0 : false,
+    [primaryTableId],
+  )
+
+  function handleClose() {
+    onClose()
+  }
+
+  function buildReservation(
+    statusOverride?: Reservation["status"],
+  ): Reservation {
+    const baseId = reservation?.id ?? `res-${Date.now()}`
+    const finalTables = tables.length > 0
+      ? tables
+      : initialTableId
+        ? [initialTableId]
+        : []
+    return {
+      id: baseId,
+      time,
+      name: name.trim(),
+      pax,
+      tables: finalTables,
+      status: statusOverride ?? reservation?.status ?? "booked",
+      shift: bucketShift(time),
+      isWalkIn: reservation?.isWalkIn ?? false,
+      vip,
+      occasion: occasion === "" ? undefined : occasion,
+      notes: notes.trim() === "" ? undefined : notes.trim(),
+      totalBill: reservation?.totalBill,
+      amountPaid: reservation?.amountPaid,
+      tip: reservation?.tip,
+    }
+  }
+
+  function validate(): boolean {
+    if (name.trim() === "") {
+      setNameInvalid(true)
+      nameRef.current?.focus()
+      return false
+    }
+    if (pax < 1) return false
+    if (!time) return false
+    setNameInvalid(false)
+    return true
+  }
+
+  function handleSave() {
+    if (!validate()) return
+    onSave(buildReservation())
+    handleClose()
+  }
+
+  function handleCancelReservation() {
+    if (!reservation) return
+    onSave(buildReservation("cancelled"))
+    handleClose()
+  }
+
+  const canCancelReservation =
+    isEdit &&
+    reservation !== undefined &&
+    (reservation.status === "booked" || reservation.status === "seated")
+
+  const title = isEdit
+    ? `Edit — ${reservation?.name ?? ""}`
+    : "New Reservation"
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
+      <DialogContent
+        className="sm:max-w-[480px] overflow-y-auto max-h-[85dvh]"
+        showCloseButton={false}
+      >
+        <DialogHeader>
+          <DialogTitle className="text-[13px] uppercase tracking-[0.22em] font-medium text-foreground">
+            {title}
+          </DialogTitle>
+        </DialogHeader>
+
+        <section className="flex flex-col gap-3">
+          <span className={SECTION_HEADER_CLASS}>Customer</span>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="rf-phone" className={LABEL_CLASS}>
+              Phone
+            </label>
+            <input
+              id="rf-phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="03-XXX XXX"
+              className={INPUT_CLASS}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="rf-name" className={LABEL_CLASS}>
+              Name
+            </label>
+            <input
+              id="rf-name"
+              ref={nameRef}
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value)
+                if (nameInvalid && e.target.value.trim() !== "") {
+                  setNameInvalid(false)
+                }
+              }}
+              placeholder="Full name"
+              aria-invalid={nameInvalid || undefined}
+              className={cn(
+                INPUT_CLASS,
+                nameInvalid && "border-destructive focus-visible:border-destructive",
+              )}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="rf-email" className={LABEL_CLASS}>
+              Email
+            </label>
+            <input
+              id="rf-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="email@example.com"
+              className={INPUT_CLASS}
+            />
+          </div>
+
+          <label
+            htmlFor="rf-vip"
+            className={cn(
+              "flex items-center gap-2.5 py-1",
+              "cursor-pointer select-none",
+              "text-[12.5px] font-light text-foreground",
+            )}
+          >
+            <Checkbox
+              id="rf-vip"
+              checked={vip}
+              onCheckedChange={(v) => setVip(Boolean(v))}
+            />
+            <span className="flex items-center gap-1.5">
+              Mark as VIP
+              {vip && <Crown className="size-3.5 text-amber-500" />}
+            </span>
+          </label>
+        </section>
+
+        <section className="border-t border-hair pt-4 mt-4 flex flex-col gap-3">
+          <span className={SECTION_HEADER_CLASS}>Booking</span>
+
+          <div className="flex flex-col gap-1">
+            <span className={LABEL_CLASS}>Date</span>
+            <span className="text-[12.5px] text-brand-ink-soft">
+              {formatDateLabel(date)}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="rf-time" className={LABEL_CLASS}>
+              Time
+            </label>
+            <div className="relative">
+              <select
+                id="rf-time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className={cn(
+                  "h-9 w-full rounded-[3px] bg-foreground/[0.03] px-3 pr-8 text-[12.5px] font-light",
+                  "border border-hair text-foreground",
+                  "focus-visible:border-foreground focus-visible:outline-none appearance-none",
+                )}
+              >
+                {slots.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                aria-hidden="true"
+                className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-brand-ink-mute"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className={LABEL_CLASS}>Guests</span>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setPax((p) => Math.max(1, p - 1))}
+                aria-label="Decrease guests"
+                className={cn(
+                  "size-9 rounded-full border border-hair-strong",
+                  "flex items-center justify-center",
+                  "text-brand-ink-soft hover:text-foreground hover:border-foreground/30",
+                  "transition-colors duration-150",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                )}
+              >
+                <Minus className="size-4" />
+              </button>
+              <span className="text-[28px] font-light w-8 text-center leading-none text-foreground">
+                {pax}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPax((p) => Math.min(20, p + 1))}
+                aria-label="Increase guests"
+                className={cn(
+                  "size-9 rounded-full border border-hair-strong",
+                  "flex items-center justify-center",
+                  "text-brand-ink-soft hover:text-foreground hover:border-foreground/30",
+                  "transition-colors duration-150",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                )}
+              >
+                <Plus className="size-4" />
+              </button>
+            </div>
+          </div>
+
+          {tables.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className={LABEL_CLASS}>
+                {tables.length > 1 ? "Tables" : "Table"}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {tables.map((t) => (
+                  <span
+                    key={t}
+                    className="bg-foreground/[0.05] rounded-[4px] px-2 py-0.5 text-[12px] font-medium text-foreground"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {mergeableAvailable && primaryTableId && (
+          <MergePicker
+            primaryTableId={primaryTableId}
+            selectedTables={tables}
+            onChange={setTables}
+          />
+        )}
+
+        <section className="border-t border-hair pt-4 mt-4 flex flex-col gap-3">
+          <span className={SECTION_HEADER_CLASS}>Details</span>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="rf-occasion" className={LABEL_CLASS}>
+              Occasion
+            </label>
+            <div className="relative">
+              <select
+                id="rf-occasion"
+                value={occasion}
+                onChange={(e) =>
+                  setOccasion(e.target.value as ReservationOccasion | "")
+                }
+                className={cn(
+                  "h-9 w-full rounded-[3px] bg-foreground/[0.03] px-3 pr-8 text-[12.5px] font-light",
+                  "border border-hair text-foreground",
+                  "focus-visible:border-foreground focus-visible:outline-none appearance-none",
+                )}
+              >
+                {OCCASIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                aria-hidden="true"
+                className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-brand-ink-mute"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="rf-notes" className={LABEL_CLASS}>
+              Notes
+            </label>
+            <textarea
+              id="rf-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder="Allergies, preferences…"
+              className={cn(
+                "w-full resize-none rounded-[3px] bg-foreground/[0.03] px-3 py-2 text-[12.5px] font-light",
+                "border border-hair text-foreground placeholder:text-brand-ink-mute",
+                "focus-visible:border-foreground focus-visible:outline-none",
+              )}
+            />
+          </div>
+        </section>
+
+        <DialogFooter
+          className={cn(
+            isEdit && canCancelReservation && "sm:justify-between",
+          )}
+        >
+          {isEdit ? (
+            <>
+              {canCancelReservation && (
+                <button
+                  type="button"
+                  onClick={handleCancelReservation}
+                  className={cn(
+                    "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
+                    "text-destructive border border-destructive/30",
+                    "hover:bg-destructive/10 transition-colors duration-150",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                  )}
+                >
+                  Cancel Reservation
+                </button>
+              )}
+              <div className="flex gap-2 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className={cn(
+                    "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
+                    "border border-hair text-brand-ink-soft",
+                    "hover:text-foreground hover:border-foreground/30 transition-colors duration-150",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                  )}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className={cn(
+                    "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
+                    "bg-primary text-primary-foreground",
+                    "hover:bg-brand-red-dark transition-colors duration-150",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                  )}
+                >
+                  Update
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleClose}
+                className={cn(
+                  "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
+                  "border border-hair text-brand-ink-soft",
+                  "hover:text-foreground hover:border-foreground/30 transition-colors duration-150",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                )}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                className={cn(
+                  "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
+                  "bg-primary text-primary-foreground",
+                  "hover:bg-brand-red-dark transition-colors duration-150",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                )}
+              >
+                Save Reservation
+              </button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

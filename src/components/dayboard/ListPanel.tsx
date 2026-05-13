@@ -18,6 +18,7 @@ interface ListPanelProps {
   activeShift: ActiveShift
   /** If true, drop the outer border + radius (used inside the mobile drawer). */
   embedded?: boolean
+  onReservationClick: (r: Reservation) => void
 }
 
 function matchesShift(r: Reservation, shift: ActiveShift): boolean {
@@ -28,7 +29,7 @@ function matchesStatus(r: Reservation, filter: StatusFilter): boolean {
   return filter === "all" || r.status === (filter as ReservationStatus)
 }
 
-export function ListPanel({ feed, activeShift, embedded }: ListPanelProps) {
+export function ListPanel({ feed, activeShift, embedded, onReservationClick }: ListPanelProps) {
   const [query, setQuery] = React.useState("")
   const [filter, setFilter] = React.useState<StatusFilter>("all")
 
@@ -94,7 +95,9 @@ export function ListPanel({ feed, activeShift, embedded }: ListPanelProps) {
             No reservations match.
           </div>
         ) : (
-          filtered.map((r) => <ResvCard key={r.id} reservation={r} />)
+          filtered.map((r) => (
+            <ResvCard key={r.id} reservation={r} onReservationClick={onReservationClick} />
+          ))
         )}
       </div>
     </aside>

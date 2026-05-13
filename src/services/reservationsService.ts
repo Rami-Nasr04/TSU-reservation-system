@@ -166,7 +166,7 @@ function pickTable(rng: () => number, isBar: boolean): string {
   return pool[Math.floor(rng() * pool.length)].id
 }
 
-function bucketShift(timeHHmm: string): ShiftId {
+export function bucketShift(timeHHmm: string): ShiftId {
   const [h, m] = timeHHmm.split(":").map(Number)
   const mins = h * 60 + m
   if (mins < 14 * 60) return "lunch"

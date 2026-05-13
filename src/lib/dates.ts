@@ -89,6 +89,26 @@ export function monthLinkLabel(year: number, month0: number): string {
     .toUpperCase()
 }
 
+/** Current local time rounded down to the nearest 15-min slot, as "HH:mm". */
+export function nowRounded15(): string {
+  const d = new Date()
+  const h = d.getHours()
+  const m = Math.floor(d.getMinutes() / 15) * 15
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+}
+
+/** Reservation time slots from 12:00 to 22:30 in 15-min steps. */
+export function reservationTimeSlots(): string[] {
+  const slots: string[] = []
+  for (let h = 12; h <= 22; h++) {
+    for (const m of [0, 15, 30, 45]) {
+      if (h === 22 && m > 30) break
+      slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`)
+    }
+  }
+  return slots
+}
+
 /** Shift a YYYY-MM-DD by N days, returning a new YYYY-MM-DD. */
 export function shiftDateISO(iso: string, deltaDays: number): string {
   const parts = parseDateISO(iso)

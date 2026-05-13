@@ -9,6 +9,7 @@ interface TablesSectionProps {
   tables: TableDef[]
   reservations: Reservation[]
   isMobile?: boolean
+  onTableClick: (tableId: string, resv?: Reservation) => void
 }
 
 export function TablesSection({
@@ -17,6 +18,7 @@ export function TablesSection({
   tables,
   reservations,
   isMobile,
+  onTableClick,
 }: TablesSectionProps) {
   return (
     <section>
@@ -38,7 +40,12 @@ export function TablesSection({
       >
         {tables.map((t) => (
           <div key={t.id} className="flex justify-center">
-            <TableButton def={t} reservations={reservations} isMobile={isMobile} />
+            <TableButton
+              def={t}
+              reservations={reservations}
+              isMobile={isMobile}
+              onTableClick={onTableClick}
+            />
           </div>
         ))}
       </div>

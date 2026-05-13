@@ -11,6 +11,8 @@ import type { ActiveShift } from "@/components/dayboard/ShiftTabs"
 import { ListPanel } from "@/components/dayboard/ListPanel"
 import { FloorView } from "@/components/dayboard/FloorView"
 import { MobileListTrigger } from "@/components/dayboard/MobileListTrigger"
+import { WalkInDialog } from "@/components/reservations/WalkInDialog"
+import { ReservationForm } from "@/components/reservations/ReservationForm"
 import {
   Drawer,
   DrawerContent,
@@ -26,9 +28,22 @@ import {
   todayParts,
 } from "@/lib/dates"
 import { cn } from "@/lib/utils"
-import type { DayFeed } from "@/services/reservationsService"
+import type { DayFeed, Reservation } from "@/services/reservationsService"
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 type Variant = "mobile" | "tablet" | "desktop"
+
+type ModalState =
+  | { kind: "none" }
+  | { kind: "walkin"; tableId: string }
+  | { kind: "reservation"; tableId?: string; reservation?: Reservation }
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
 
 function useVariant(): Variant {
   const [w, setW] = React.useState<number>(() =>
@@ -50,6 +65,42 @@ function safeDate(param: string | undefined): string {
   return formatDateISO(t.year, t.month0, t.day)
 }
 
+function useMergedFeed(
+  data: DayFeed | null,
+  localReservations: Reservation[],
+): DayFeed | null {
+  return React.useMemo(() => {
+    if (!data) return null
+    if (localReservations.length === 0) return data
+    const localById = new Map(localReservations.map((r) => [r.id, r]))
+    const serverIds = new Set(data.reservations.map((r) => r.id))
+    const serverUpdated = data.reservations.map((r) => localById.get(r.id) ?? r)
+    const newLocal = localReservations.filter((r) => !serverIds.has(r.id))
+    const reservations = [...serverUpdated, ...newLocal]
+    const byShift: Record<string, number> = { lunch: 0, afternoon: 0, late: 0 }
+    for (const r of reservations) byShift[r.shift] = (byShift[r.shift] ?? 0) + 1
+    return {
+      ...data,
+      reservations,
+      shifts: data.shifts.map((s) =>
+        s.id === "all"
+          ? { ...s, count: reservations.length }
+          : { ...s, count: byShift[s.id] ?? 0 },
+      ),
+      counters: {
+        reservations: reservations.length,
+        guests: reservations.reduce((s, r) => s + r.pax, 0),
+        walkIns: reservations.filter((r) => r.isWalkIn).length,
+        seated: reservations.filter((r) => r.status === "seated").length,
+      },
+    }
+  }, [data, localReservations])
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
 export default function DayBoard() {
   const { date: dateParam } = useParams()
   const navigate = useNavigate()
@@ -60,11 +111,51 @@ export default function DayBoard() {
   const date = safeDate(dateParam)
   const parts = parseDateISO(date)!
   const { data, isLoading } = useDay(date)
+
   const [activeShift, setActiveShift] = React.useState<ActiveShift>("all")
   const [drawerOpen, setDrawerOpen] = React.useState(false)
+  const [modal, setModal] = React.useState<ModalState>({ kind: "none" })
+  const [modalRevision, setModalRevision] = React.useState(0)
+  const [localReservations, setLocalReservations] = React.useState<Reservation[]>([])
+
+  const feed = useMergedFeed(data, localReservations)
 
   function goDay(delta: number) {
     navigate(`/day/${shiftDateISO(date, delta)}`)
+  }
+
+  function openModal(next: Exclude<ModalState, { kind: "none" }>) {
+    setModalRevision((r) => r + 1)
+    setModal(next)
+  }
+
+  function handleTableClick(tableId: string, resv?: Reservation) {
+    const isLive = resv && (resv.status === "booked" || resv.status === "seated")
+    if (isLive) {
+      openModal({ kind: "reservation", tableId, reservation: resv })
+    } else {
+      openModal({ kind: "walkin", tableId })
+    }
+  }
+
+  function handleReservationClick(resv: Reservation) {
+    openModal({ kind: "reservation", reservation: resv })
+  }
+
+  function handleNewReservation() {
+    openModal({ kind: "reservation" })
+  }
+
+  function handleSave(r: Reservation) {
+    setLocalReservations((prev) => {
+      const idx = prev.findIndex((x) => x.id === r.id)
+      if (idx >= 0) return prev.map((x, i) => (i === idx ? r : x))
+      return [...prev, r]
+    })
+  }
+
+  function closeModal() {
+    setModal({ kind: "none" })
   }
 
   const headerLeft = <BackLink monthLabel={monthLinkLabel(parts.year, parts.month0)} />
@@ -78,7 +169,7 @@ export default function DayBoard() {
   )
   const headerActions = (
     <>
-      <NewReservationButton isMobile={isMobile} />
+      <NewReservationButton isMobile={isMobile} onClick={handleNewReservation} />
       <ThemeToggle />
     </>
   )
@@ -94,7 +185,7 @@ export default function DayBoard() {
         active={activeShift}
         onChange={setActiveShift}
         shifts={
-          data?.shifts ?? [
+          feed?.shifts ?? [
             { id: "lunch", label: "Lunch", hours: "12–2pm", count: 0 },
             { id: "afternoon", label: "Afternoon", hours: "2–9pm", count: 0 },
             { id: "late", label: "Late Dinner", hours: "9–11:30pm", count: 0 },
@@ -104,17 +195,19 @@ export default function DayBoard() {
         isMobile={isMobile}
       />
 
-      {isLoading || !data ? (
+      {isLoading || !feed ? (
         <div className="py-12 text-center text-[11px] tracking-[0.22em] uppercase text-brand-ink-mute">
           Loading…
         </div>
       ) : isMobile ? (
         <MobileBody
-          feed={data}
+          feed={feed}
           activeShift={activeShift}
           drawerOpen={drawerOpen}
           onOpenDrawer={() => setDrawerOpen(true)}
           onCloseDrawer={() => setDrawerOpen(false)}
+          onTableClick={handleTableClick}
+          onReservationClick={handleReservationClick}
         />
       ) : (
         <main
@@ -126,16 +219,49 @@ export default function DayBoard() {
           )}
         >
           <div className="min-h-0">
-            <ListPanel feed={data} activeShift={activeShift} />
+            <ListPanel
+              feed={feed}
+              activeShift={activeShift}
+              onReservationClick={handleReservationClick}
+            />
           </div>
           <div className="min-h-0 rounded-[3px] border border-hair bg-card p-4 lg:p-5">
-            <FloorView reservations={data.reservations} />
+            <FloorView
+              reservations={feed.reservations}
+              onTableClick={handleTableClick}
+            />
           </div>
         </main>
+      )}
+
+      {/* Modals */}
+      {modal.kind === "walkin" && (
+        <WalkInDialog
+          key={modalRevision}
+          open
+          onClose={closeModal}
+          tableId={modal.tableId}
+          onSave={handleSave}
+        />
+      )}
+      {modal.kind === "reservation" && (
+        <ReservationForm
+          key={modalRevision}
+          open
+          onClose={closeModal}
+          date={date}
+          initialTableId={modal.tableId}
+          reservation={modal.reservation}
+          onSave={handleSave}
+        />
       )}
     </AppShell>
   )
 }
+
+// ---------------------------------------------------------------------------
+// Mobile sub-layout
+// ---------------------------------------------------------------------------
 
 interface MobileBodyProps {
   feed: DayFeed
@@ -143,6 +269,8 @@ interface MobileBodyProps {
   drawerOpen: boolean
   onOpenDrawer: () => void
   onCloseDrawer: () => void
+  onTableClick: (tableId: string, resv?: Reservation) => void
+  onReservationClick: (r: Reservation) => void
 }
 
 function MobileBody({
@@ -151,11 +279,17 @@ function MobileBody({
   drawerOpen,
   onOpenDrawer,
   onCloseDrawer,
+  onTableClick,
+  onReservationClick,
 }: MobileBodyProps) {
   return (
     <div className="relative flex flex-1 flex-col min-h-0">
       <main className="m-3 flex-1 min-h-0 overflow-auto rounded-[3px] border border-hair bg-card p-3 pb-20">
-        <FloorView reservations={feed.reservations} isMobile />
+        <FloorView
+          reservations={feed.reservations}
+          isMobile
+          onTableClick={onTableClick}
+        />
       </main>
       <MobileListTrigger
         count={feed.reservations.length}
@@ -167,7 +301,12 @@ function MobileBody({
       >
         <DrawerContent className="h-[78dvh]">
           <DrawerTitle className="sr-only">Reservations</DrawerTitle>
-          <ListPanel feed={feed} activeShift={activeShift} embedded />
+          <ListPanel
+            feed={feed}
+            activeShift={activeShift}
+            embedded
+            onReservationClick={onReservationClick}
+          />
         </DrawerContent>
       </Drawer>
     </div>

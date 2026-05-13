@@ -13,9 +13,10 @@ import { TablesSection } from "./TablesSection"
 interface FloorViewProps {
   reservations: Reservation[]
   isMobile?: boolean
+  onTableClick: (tableId: string, resv?: Reservation) => void
 }
 
-export function FloorView({ reservations, isMobile }: FloorViewProps) {
+export function FloorView({ reservations, isMobile, onTableClick }: FloorViewProps) {
   const [section, setSection] = React.useState<TableSection>("indoor")
   return (
     <div className="flex h-full min-h-0 flex-col gap-3.5">
@@ -24,7 +25,9 @@ export function FloorView({ reservations, isMobile }: FloorViewProps) {
         {!isMobile && <StatusLegend />}
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-        {section === "bar" && <BarSection reservations={reservations} />}
+        {section === "bar" && (
+          <BarSection reservations={reservations} onTableClick={onTableClick} />
+        )}
         {section === "indoor" && (
           <TablesSection
             title="Indoor"
@@ -32,6 +35,7 @@ export function FloorView({ reservations, isMobile }: FloorViewProps) {
             tables={INDOOR_TABLES}
             reservations={reservations}
             isMobile={isMobile}
+            onTableClick={onTableClick}
           />
         )}
         {section === "terrace" && (
@@ -41,6 +45,7 @@ export function FloorView({ reservations, isMobile }: FloorViewProps) {
             tables={TERRACE_TABLES}
             reservations={reservations}
             isMobile={isMobile}
+            onTableClick={onTableClick}
           />
         )}
       </div>
