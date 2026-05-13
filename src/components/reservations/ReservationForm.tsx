@@ -9,7 +9,7 @@ import type {
   Reservation,
   ReservationOccasion,
 } from "@/services/reservationsService"
-import { getMergeableSiblings } from "@/lib/tables"
+import { BAR_TABLES, INDOOR_TABLES, TERRACE_TABLES, getMergeableSiblings } from "@/lib/tables"
 import {
   Dialog,
   DialogContent,
@@ -398,23 +398,65 @@ export function ReservationForm({
             </div>
           </div>
 
-          {tables.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <span className={LABEL_CLASS}>
-                {tables.length > 1 ? "Tables" : "Table"}
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {tables.map((t) => (
+          <div className="flex flex-col gap-1">
+            <label htmlFor="rf-table" className={LABEL_CLASS}>
+              Table
+            </label>
+            <div className="relative">
+              <select
+                id="rf-table"
+                value={tables[0] ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setTables(v ? [v] : [])
+                }}
+                className={cn(
+                  "h-9 w-full rounded-[3px] bg-foreground/[0.03] px-3 pr-8 text-[12.5px] font-light",
+                  "border border-hair text-foreground",
+                  "focus-visible:border-foreground focus-visible:outline-none appearance-none",
+                )}
+              >
+                <option value="">Unassigned</option>
+                <optgroup label="Bar">
+                  {BAR_TABLES.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Seat {t.id}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Indoor">
+                  {INDOOR_TABLES.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Table {t.id} · {t.capacity} seats
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Terrace">
+                  {TERRACE_TABLES.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Table {t.id} · {t.capacity} seats
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+              <ChevronDown
+                aria-hidden="true"
+                className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-brand-ink-mute"
+              />
+            </div>
+            {tables.length > 1 && (
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {tables.slice(1).map((t) => (
                   <span
                     key={t}
                     className="bg-foreground/[0.05] rounded-[4px] px-2 py-0.5 text-[12px] font-medium text-foreground"
                   >
-                    {t}
+                    +{t}
                   </span>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </section>
 
         {mergeableAvailable && primaryTableId && (
