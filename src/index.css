@@ -15,8 +15,11 @@
   --brand-red-soft: oklch(0.643 0.169 29);       /* #E0594A */
 
   --brand-paper: oklch(0.931 0.005 80);          /* #ECEAE3 cool off-white */
-  --brand-paper-warm: oklch(0.96 0.004 80);      /* slight warm tint, modals/cards */
+  --brand-paper-warm: oklch(0.972 0.004 85);     /* #FAF8F3 cream — modal body */
   --brand-ink: oklch(0.186 0.013 270);           /* #14171C near-black */
+  --brand-gold: oklch(0.625 0.077 70);           /* #B58A4A VIP accent */
+  --brand-gold-soft: oklch(0.625 0.077 70 / 0.10);
+  --brand-gold-deep: oklch(0.512 0.071 70);      /* darker gold for text on VIP toggle */
   --brand-ink-soft: oklch(0.508 0.009 270);      /* #6B6F76 secondary text */
   --brand-ink-mute: oklch(0.681 0.011 270);      /* #9AA0A8 tertiary / placeholder */
 
@@ -77,9 +80,13 @@
 .dark {
   /* Dark-mode brand tokens — inverted, kanji-ink as bg */
   --brand-paper: oklch(0.925 0.005 80);    /* used for foreground text */
+  --brand-paper-warm: oklch(0.205 0.011 270); /* body bg — between card and bg */
   --brand-ink: oklch(0.155 0.012 270);
   --brand-ink-soft: oklch(0.640 0.008 270);
   --brand-ink-mute: oklch(0.480 0.008 270);
+  --brand-gold: oklch(0.725 0.090 75);      /* lifted gold for dark mode */
+  --brand-gold-soft: oklch(0.725 0.090 75 / 0.12);
+  --brand-gold-deep: oklch(0.815 0.085 78);
 
   --brand-hair: oklch(1 0 0 / 0.08);
   --brand-hair-strong: oklch(1 0 0 / 0.14);
@@ -171,6 +178,9 @@
   --color-brand-ink-mute: var(--brand-ink-mute);
   --color-hair: var(--brand-hair);
   --color-hair-strong: var(--brand-hair-strong);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-gold-soft: var(--brand-gold-soft);
+  --color-brand-gold-deep: var(--brand-gold-deep);
 
   /* fonts */
   --font-sans: 'Geist Variable', 'Helvetica Neue', system-ui, sans-serif;
