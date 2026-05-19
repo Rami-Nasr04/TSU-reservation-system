@@ -5,6 +5,7 @@ import {
   TERRACE_TABLES,
 } from "@/lib/tables"
 import { apiFetch, shouldUseMock } from "./apiClient"
+import { upsertCustomer, type CustomerInput } from "./customersService"
 
 export interface ReservationItem {
   time: string // "HH:mm"
@@ -206,6 +207,27 @@ export interface ReservationRow {
   updated_at: string
   table_labels: string[]
   primary_label: string | null
+}
+
+/**
+ * Input for create/update. `customer` is the upsert source for NEW reservations
+ * (skipped when null or blank); `customerId` preserves an existing link on edits/
+ * checkout without re-upserting. `tables` holds table LABELS — index 0 is the
+ * primary — which the service resolves to numeric ids before hitting the API.
+ */
+export interface ReservationInput {
+  customer: CustomerInput | null
+  customerId: string | null
+  date: string
+  start_time: string
+  pax: number
+  status: ReservationStatus
+  is_walk_in: boolean
+  occasion: ReservationOccasion | null
+  notes: string | null
+  total_bill: number | null
+  amount_paid: number | null
+  tables: string[]
 }
 
 export interface ShiftSummary {
@@ -414,5 +436,110 @@ async function mockGetDay(date: string): Promise<DayFeed> {
       walkIns,
       seated,
     },
+  }
+}
+
+// ---------- Mutations (create / update / delete) ----------
+
+interface TableRow {
+  id: number
+  label: string
+}
+
+// The UI works in table LABELS but POST/PUT need numeric table_id. Cache the
+// label→id map from GET /tables (table inventory is static in v1; Settings will
+// invalidate this in P4 once it can mutate tables).
+let tableIdMapCache: Map<string, number> | null = null
+
+async function getTableIdMap(): Promise<Map<string, number>> {
+  if (tableIdMapCache) return tableIdMapCache
+  const res = await apiFetch<TableRow[]>("/tables")
+  if (!res.success || !res.data) {
+    throw new Error(res.error?.message ?? "Failed to load tables")
+  }
+  const map = new Map<string, number>()
+  for (const t of res.data) map.set(t.label, t.id)
+  tableIdMapCache = map
+  return map
+}
+
+async function resolveTables(
+  labels: string[],
+): Promise<{ table_id: number; is_primary: boolean }[]> {
+  if (labels.length === 0) return []
+  const idMap = await getTableIdMap()
+  return labels.map((label, i) => {
+    const id = idMap.get(label)
+    if (id === undefined) throw new Error(`Unknown table "${label}"`)
+    return { table_id: id, is_primary: i === 0 }
+  })
+}
+
+// Upsert the customer for new reservations; otherwise keep the existing FK.
+async function resolveCustomerId(input: ReservationInput): Promise<string | null> {
+  if (input.customer && (input.customer.name?.trim() || input.customer.phone?.trim())) {
+    const customer = await upsertCustomer(input.customer)
+    return customer.id
+  }
+  return input.customerId ?? null
+}
+
+function reservationBody(
+  input: ReservationInput,
+  customerId: string | null,
+  tables: { table_id: number; is_primary: boolean }[],
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    customer_id: customerId,
+    date: input.date,
+    start_time: input.start_time,
+    pax: input.pax,
+    status: input.status,
+    is_walk_in: input.is_walk_in,
+    occasion: input.occasion,
+    notes: input.notes,
+    total_bill: input.total_bill,
+    amount_paid: input.amount_paid,
+  }
+  // Backend rejects an empty tables array (min(1)); omit it to mean "no seating".
+  if (tables.length > 0) body.tables = tables
+  return body
+}
+
+export async function createReservation(input: ReservationInput): Promise<Reservation> {
+  const customerId = await resolveCustomerId(input)
+  const tables = await resolveTables(input.tables)
+  const res = await apiFetch<ReservationRow>("/reservations", {
+    method: "POST",
+    body: JSON.stringify(reservationBody(input, customerId, tables)),
+  })
+  if (!res.success || !res.data) {
+    throw new Error(res.error?.message ?? "Failed to create reservation")
+  }
+  return adaptRow(res.data)
+}
+
+export async function updateReservation(
+  id: string,
+  input: ReservationInput,
+): Promise<Reservation> {
+  const customerId = await resolveCustomerId(input)
+  const tables = await resolveTables(input.tables)
+  const res = await apiFetch<ReservationRow>(`/reservations/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(reservationBody(input, customerId, tables)),
+  })
+  if (!res.success || !res.data) {
+    throw new Error(res.error?.message ?? "Failed to update reservation")
+  }
+  return adaptRow(res.data)
+}
+
+export async function deleteReservation(id: string): Promise<void> {
+  const res = await apiFetch<{ deleted: boolean }>(`/reservations/${id}`, {
+    method: "DELETE",
+  })
+  if (!res.success) {
+    throw new Error(res.error?.message ?? "Failed to delete reservation")
   }
 }
