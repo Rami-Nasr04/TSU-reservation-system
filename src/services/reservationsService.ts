@@ -1,9 +1,10 @@
-import { dayOfWeek, daysInMonth, firstWeekdayOfMonth } from "@/lib/dates"
+import { dayOfWeek, daysInMonth, firstWeekdayOfMonth, formatDateISO } from "@/lib/dates"
 import {
   BAR_TABLES,
   INDOOR_TABLES,
   TERRACE_TABLES,
 } from "@/lib/tables"
+import { apiFetch, shouldUseMock } from "./apiClient"
 
 export interface ReservationItem {
   time: string // "HH:mm"
@@ -76,14 +77,7 @@ function generateMonth(year: number, month0: number): MonthDay[] {
   return days
 }
 
-/**
- * Returns the month feed.
- *
- * BACKEND CONTRACT: when `GET /reservations/month?year=&month=` is implemented,
- * swap the body to `apiFetch<MonthFeed>(\`/reservations/month?year=...&month=...\`)`
- * and return `result.data`. The shape stays identical.
- */
-export async function getMonth(year: number, month0: number): Promise<MonthFeed> {
+async function mockGetMonth(year: number, month0: number): Promise<MonthFeed> {
   // simulate network latency for spinner UX
   await new Promise((r) => setTimeout(r, 120))
   return {
@@ -92,6 +86,57 @@ export async function getMonth(year: number, month0: number): Promise<MonthFeed>
     daysInMonth: daysInMonth(year, month0),
     firstWeekday: firstWeekdayOfMonth(year, month0),
     days: generateMonth(year, month0),
+  }
+}
+
+/**
+ * Returns the month feed. Live path calls `GET /reservations?from=&to=` for the
+ * month's date span and aggregates by calendar day in JS (no dedicated month
+ * endpoint — spec option A). Flip back to the mock by adding `/reservations` to
+ * MOCK_ENDPOINTS.
+ */
+export async function getMonth(year: number, month0: number): Promise<MonthFeed> {
+  if (shouldUseMock("/reservations")) return mockGetMonth(year, month0)
+  const total = daysInMonth(year, month0)
+  const from = formatDateISO(year, month0, 1)
+  const to = formatDateISO(year, month0, total)
+  const res = await apiFetch<ReservationRow[]>(`/reservations?from=${from}&to=${to}`)
+  if (!res.success || !res.data) {
+    throw new Error(res.error?.message ?? "Failed to load month")
+  }
+  return adaptToMonthFeed(year, month0, res.data)
+}
+
+function adaptToMonthFeed(
+  year: number,
+  month0: number,
+  rows: ReservationRow[],
+): MonthFeed {
+  const total = daysInMonth(year, month0)
+  const days: MonthDay[] = Array.from({ length: total }, (_, i) => ({
+    day: i + 1,
+    count: 0,
+    items: [],
+  }))
+  for (const row of rows) {
+    // row.date is "YYYY-MM-DDT00:00:00.000Z" — slice the calendar day, no Date parse (avoids TZ drift).
+    const dayOfMonth = Number(row.date.slice(8, 10))
+    const idx = dayOfMonth - 1
+    if (idx < 0 || idx >= total) continue
+    days[idx].count += 1
+    days[idx].items.push({
+      time: row.start_time.slice(0, 5),
+      name: row.customer_name ?? (row.is_walk_in ? "Walk-in" : "Anonymous"),
+      pax: row.pax,
+    })
+  }
+  for (const d of days) d.items.sort((a, b) => a.time.localeCompare(b.time))
+  return {
+    year,
+    month0,
+    daysInMonth: total,
+    firstWeekday: firstWeekdayOfMonth(year, month0),
+    days,
   }
 }
 
@@ -124,11 +169,43 @@ export interface Reservation {
   shift: ShiftId
   isWalkIn: boolean
   vip: boolean
+  /** Customer FK — surfaced so the edit modal can patch the right customer. */
+  customerId?: string | null
   occasion?: ReservationOccasion
   notes?: string
   totalBill?: number
   amountPaid?: number
   tip?: number
+}
+
+/**
+ * Flat enriched row as returned by `GET /reservations` (+ `?date=`/`?from=&to=`)
+ * and `GET /reservations/{id}`. `customer_name`/`vip` come from the LEFT JOIN to
+ * customers; `table_labels`/`primary_label` from the LATERAL aggregate over
+ * reservation_tables (primary first). `start_time` is "HH:mm:ss"; `date` is a full
+ * ISO timestamp at UTC midnight ("YYYY-MM-DDT00:00:00.000Z").
+ */
+export interface ReservationRow {
+  id: string
+  customer_id: string | null
+  customer_name: string | null
+  vip: boolean | null
+  date: string
+  start_time: string
+  pax: number
+  status: ReservationStatus
+  is_walk_in: boolean
+  occasion: ReservationOccasion | null
+  notes: string | null
+  total_bill: number | null
+  amount_paid: number | null
+  tip: number | null
+  shift: ShiftId
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  table_labels: string[]
+  primary_label: string | null
 }
 
 export interface ShiftSummary {
@@ -191,13 +268,78 @@ function pseudoStatus(
 }
 
 /**
- * Returns the day feed for the given local-date YYYY-MM-DD.
- *
- * BACKEND CONTRACT: when `GET /reservations?date=YYYY-MM-DD` is implemented,
- * swap the body to `apiFetch<DayFeed>("/reservations?date=" + date)` and
- * return `result.data`. The shape stays identical.
+ * Returns the day feed for the given local-date YYYY-MM-DD. Live path calls
+ * `GET /reservations?date=` and adapts the enriched rows into a DayFeed (bucket
+ * by shift + counters). Flip back to the mock by adding `/reservations` to
+ * MOCK_ENDPOINTS.
  */
 export async function getDay(date: string): Promise<DayFeed> {
+  if (shouldUseMock("/reservations")) return mockGetDay(date)
+  const res = await apiFetch<ReservationRow[]>(`/reservations?date=${date}`)
+  if (!res.success || !res.data) {
+    throw new Error(res.error?.message ?? "Failed to load day")
+  }
+  return adaptToDayFeed(date, res.data)
+}
+
+/** Map one enriched backend row to the UI `Reservation` shape. */
+function adaptRow(row: ReservationRow): Reservation {
+  return {
+    id: row.id,
+    time: row.start_time.slice(0, 5),
+    name: row.customer_name ?? (row.is_walk_in ? "Walk-in" : "Anonymous"),
+    pax: row.pax,
+    tables: row.table_labels,
+    status: row.status,
+    shift: row.shift,
+    isWalkIn: row.is_walk_in,
+    vip: row.vip ?? false,
+    customerId: row.customer_id,
+    occasion: row.occasion ?? undefined,
+    notes: row.notes ?? undefined,
+    totalBill: row.total_bill ?? undefined,
+    amountPaid: row.amount_paid ?? undefined,
+    tip: row.tip ?? undefined,
+  }
+}
+
+/** Compose enriched rows into a DayFeed — same bucketing/counters as the mock. */
+function adaptToDayFeed(date: string, rows: ReservationRow[]): DayFeed {
+  const reservations = rows.map(adaptRow)
+  reservations.sort((a, b) => a.time.localeCompare(b.time))
+
+  const byShift: Record<ShiftId, number> = { lunch: 0, afternoon: 0, late: 0 }
+  let guests = 0
+  let walkIns = 0
+  let seated = 0
+  for (const r of reservations) {
+    byShift[r.shift] += 1
+    guests += r.pax
+    if (r.isWalkIn) walkIns += 1
+    if (r.status === "seated") seated += 1
+  }
+
+  const shifts: ShiftSummary[] = [
+    { id: "lunch",     label: "Lunch",       hours: "12–2pm",     count: byShift.lunch },
+    { id: "afternoon", label: "Afternoon",   hours: "2–9pm",      count: byShift.afternoon },
+    { id: "late",      label: "Late Dinner", hours: "9–11:30pm",  count: byShift.late },
+    { id: "all",       label: "All",         hours: null,         count: reservations.length },
+  ]
+
+  return {
+    date,
+    reservations,
+    shifts,
+    counters: {
+      reservations: reservations.length,
+      guests,
+      walkIns,
+      seated,
+    },
+  }
+}
+
+async function mockGetDay(date: string): Promise<DayFeed> {
   await new Promise((r) => setTimeout(r, 120))
   const parts = date.split("-").map(Number)
   const seed = parts[0] * 10000 + parts[1] * 100 + parts[2]
