@@ -1,4 +1,5 @@
 import { apiFetch, shouldUseMock } from "./apiClient"
+import type { ReservationStatus } from "./reservationsService"
 
 export interface CustomerLookupResult {
   name: string
@@ -97,6 +98,197 @@ export async function upsertCustomer(input: CustomerInput): Promise<Customer> {
   })
   if (!res.success || !res.data) throw new Error(res.error?.message ?? "Save failed")
   return res.data
+}
+
+// ---------- Customers CRM (Phase 3) ----------
+
+/** Enriched customer row composed from the `customers_with_stats` view. */
+export interface CustomerWithStats {
+  id: string
+  name: string | null
+  phone: string | null
+  email: string | null
+  vip: boolean
+  tags: string[]
+  notes: string | null
+  visitCount: number
+  lifetimeSpend: number
+  lifetimeTips: number
+  avgPax: number | null
+  avgTip: number | null
+  lastVisit: string | null // "YYYY-MM-DD"
+}
+
+/** One row in the drawer's reservation-history table. */
+export interface ReservationHistoryItem {
+  id: string
+  date: string // "YYYY-MM-DD"
+  time: string // "HH:mm"
+  tables: string[]
+  pax: number
+  totalBill: number | null
+  tip: number | null
+  status: ReservationStatus
+}
+
+export type CustomerSegment = "regulars" | "lapsed" | "new"
+export type CustomerSort = "last_visit_desc" | "visits_desc" | "name_asc"
+
+export interface CustomerFilters {
+  search?: string
+  vip?: boolean
+  segment?: CustomerSegment
+  sort?: CustomerSort
+  limit?: number
+  offset?: number
+}
+
+/** Partial update payload for PATCH /customers/{id}. */
+export interface CustomerPatch {
+  name?: string | null
+  phone?: string | null
+  email?: string | null
+  vip?: boolean
+  tags?: string[]
+  notes?: string | null
+}
+
+// Flat row from GET /customers (customers_with_stats view) and PATCH /customers/{id}.
+interface CustomerStatsRow {
+  id: string
+  name: string | null
+  phone: string | null
+  email: string | null
+  vip: boolean
+  tags: string[] | null
+  notes: string | null
+  visit_count: number
+  lifetime_spend: number
+  lifetime_tips: number
+  avg_pax: number | null
+  avg_tip: number | null
+  last_visit: string | null
+}
+
+// Flat row from GET /customers/{id}/reservations.
+interface CustomerReservationRow {
+  id: string
+  date: string
+  start_time: string
+  pax: number
+  total_bill: number | null
+  tip: number | null
+  status: ReservationStatus
+  tables: string[] | null
+}
+
+/** Slice the calendar day off an ISO timestamp without a Date parse (no TZ drift). */
+function isoDay(value: string | null): string | null {
+  return value ? value.slice(0, 10) : null
+}
+
+function adaptCustomer(row: CustomerStatsRow): CustomerWithStats {
+  return {
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    email: row.email,
+    vip: row.vip,
+    tags: row.tags ?? [],
+    notes: row.notes,
+    visitCount: row.visit_count,
+    lifetimeSpend: row.lifetime_spend,
+    lifetimeTips: row.lifetime_tips,
+    avgPax: row.avg_pax,
+    avgTip: row.avg_tip,
+    lastVisit: isoDay(row.last_visit),
+  }
+}
+
+/**
+ * CRM list backed by the `customers_with_stats` view. Maps the filter object to
+ * query params: `vip`, `segment` (regulars/lapsed/new), `sort`, `search`, plus
+ * paging. Stats reflect completed reservations only (per the view).
+ */
+export async function listCustomers(
+  filters: CustomerFilters = {},
+): Promise<CustomerWithStats[]> {
+  const params = new URLSearchParams()
+  if (filters.search?.trim()) params.set("search", filters.search.trim())
+  if (filters.vip) params.set("vip", "true")
+  if (filters.segment) params.set("segment", filters.segment)
+  if (filters.sort) params.set("sort", filters.sort)
+  if (filters.limit != null) params.set("limit", String(filters.limit))
+  if (filters.offset != null) params.set("offset", String(filters.offset))
+  const qs = params.toString()
+  const res = await apiFetch<CustomerStatsRow[]>(`/customers${qs ? `?${qs}` : ""}`)
+  if (!res.success || !res.data) {
+    throw new Error(res.error?.message ?? "Failed to load customers")
+  }
+  return res.data.map(adaptCustomer)
+}
+
+/** Recent reservation history for the drawer (newest first, all statuses). */
+export async function getCustomerHistory(
+  id: string,
+  limit = 6,
+): Promise<ReservationHistoryItem[]> {
+  const res = await apiFetch<CustomerReservationRow[]>(
+    `/customers/${id}/reservations?limit=${limit}`,
+  )
+  if (!res.success || !res.data) {
+    throw new Error(res.error?.message ?? "Failed to load history")
+  }
+  return res.data.map((row) => ({
+    id: row.id,
+    date: isoDay(row.date) ?? row.date,
+    time: row.start_time.slice(0, 5),
+    tables: row.tables ?? [],
+    pax: row.pax,
+    totalBill: row.total_bill,
+    tip: row.tip,
+    status: row.status,
+  }))
+}
+
+/**
+ * Partial update — only the supplied keys are written (dynamic SET on the
+ * backend, no default-clobber). Name/email empty strings coerce to null and the
+ * phone is normalized to E.164-or-null to match the backend's validation.
+ */
+export async function patchCustomer(
+  id: string,
+  patch: CustomerPatch,
+): Promise<CustomerWithStats> {
+  const body: CustomerPatch = { ...patch }
+  if ("name" in body) body.name = emptyToNull(body.name)
+  if ("email" in body) body.email = emptyToNull(body.email)
+  if ("phone" in body) body.phone = normalizePhone(body.phone)
+  if ("notes" in body) body.notes = emptyToNull(body.notes)
+  const res = await apiFetch<CustomerStatsRow>(`/customers/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
+  if (!res.success || !res.data) throw new Error(res.error?.message ?? "Save failed")
+  return adaptCustomer(res.data)
+}
+
+/**
+ * Hard-delete. The DB cascades nothing — a customer with reservations triggers a
+ * 409 CONFLICT (FK), surfaced here as a friendly message the caller can toast.
+ */
+export async function deleteCustomer(id: string): Promise<void> {
+  const res = await apiFetch<{ id: string }>(`/customers/${id}`, {
+    method: "DELETE",
+  })
+  if (!res.success) {
+    if (res.error?.code === "CONFLICT") {
+      throw new Error(
+        "Cannot delete — customer has reservations. Reassign or cancel them first.",
+      )
+    }
+    throw new Error(res.error?.message ?? "Delete failed")
+  }
 }
 
 async function mockLookup(phone: string): Promise<CustomerLookupResult | null> {
