@@ -55,7 +55,7 @@ export function CustomerRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "grid w-full items-center border-t border-hair px-[18px] py-3.5 text-left",
+        "grid w-full items-center gap-x-3 border-t border-hair px-[18px] py-3.5 text-left",
         CUSTOMER_GRID,
         "transition-colors duration-150 hover:bg-muted/50",
         selected && "bg-primary/5",

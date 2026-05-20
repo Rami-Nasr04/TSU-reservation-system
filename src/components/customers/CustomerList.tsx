@@ -25,7 +25,7 @@ export function CustomerList({
       {!isMobile && (
         <div
           className={cn(
-            "sticky top-0 z-10 grid bg-foreground/[0.025] px-[18px] py-3",
+            "sticky top-0 z-10 grid gap-x-3 bg-foreground/[0.025] px-[18px] py-3",
             CUSTOMER_GRID,
             "text-[10px] font-medium uppercase tracking-[0.24em] text-brand-ink-soft",
           )}
