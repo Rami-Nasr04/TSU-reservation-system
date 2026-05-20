@@ -6,6 +6,7 @@ import { Overline } from "@/components/brand"
 import { CounterChip } from "./CounterChip"
 import { FilterChips, type StatusFilter } from "./FilterChips"
 import { ResvCard } from "./ResvCard"
+import { STATUS_STYLE } from "./statusStyle"
 import type {
   DayFeed,
   Reservation,
@@ -41,10 +42,19 @@ export function ListPanel({ feed, activeShift, embedded, onReservationClick }: L
       if (!q) return true
       return (
         r.name.toLowerCase().includes(q) ||
-        r.tables.some((t) => t.includes(q))
+        r.tables.some((t) => t.toLowerCase().includes(q)) ||
+        r.status.includes(q) ||
+        STATUS_STYLE[r.status].label.toLowerCase().includes(q)
       )
     })
   }, [feed.reservations, activeShift, filter, query])
+
+  const isFiltering = query.trim().length > 0 || filter !== "all"
+
+  function clearFilters() {
+    setQuery("")
+    setFilter("all")
+  }
 
   return (
     <aside
@@ -91,8 +101,24 @@ export function ListPanel({ feed, activeShift, embedded, onReservationClick }: L
       {/* Scrolling list */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {filtered.length === 0 ? (
-          <div className="px-4 py-10 text-center text-[11px] tracking-[0.22em] uppercase text-brand-ink-mute">
-            No reservations match.
+          <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
+            <span className="text-[11px] tracking-[0.22em] uppercase text-brand-ink-mute">
+              No reservations match{isFiltering ? " this filter" : ""}.
+            </span>
+            {isFiltering && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className={cn(
+                  "rounded-full border border-hair-strong px-3 py-1",
+                  "text-[10px] font-medium uppercase tracking-[0.18em] text-brand-ink-soft",
+                  "transition-colors duration-150 hover:text-foreground",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                )}
+              >
+                Clear
+              </button>
+            )}
           </div>
         ) : (
           filtered.map((r) => (
