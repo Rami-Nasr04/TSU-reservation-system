@@ -26,11 +26,7 @@ import type {
   ReservationOccasion,
   ReservationStatus,
 } from "@/services/reservationsService"
-import {
-  ALL_TABLES,
-  getMergeableSiblings,
-  getTable,
-} from "@/lib/tables"
+import { useFloorTables, type FloorTable } from "@/contexts/TablesContext"
 import { DialogOverlay, DialogTitle } from "@/components/ui/dialog"
 
 // ---------------------------------------------------------------------------
@@ -79,7 +75,10 @@ function shiftLabel(shift: "lunch" | "afternoon" | "late"): string {
   return shift === "lunch" ? "Lunch" : shift === "afternoon" ? "Afternoon" : "Late Dinner"
 }
 
-function tableSubtitle(tables: string[]): string {
+function tableSubtitle(
+  tables: string[],
+  getTable: (label: string) => FloorTable | undefined,
+): string {
   if (tables.length === 0) return "Unassigned"
   const def = getTable(tables[0])
   if (!def) return `Table ${tables[0]}`
@@ -113,6 +112,7 @@ export function ReservationForm({
   onCheckout,
 }: ReservationFormProps) {
   const isEdit = Boolean(reservation)
+  const { getMergeableSiblings } = useFloorTables()
 
   // ---- form state ---------------------------------------------------------
   const initialTables = React.useMemo<string[]>(() => {
@@ -187,7 +187,7 @@ export function ReservationForm({
   const primaryTableId = tables[0] ?? ""
   const mergeable = React.useMemo(
     () => (primaryTableId ? getMergeableSiblings(primaryTableId) : []),
-    [primaryTableId],
+    [primaryTableId, getMergeableSiblings],
   )
   const computedShift = bucketShift(time)
   const status = reservation?.status
@@ -459,6 +459,7 @@ interface HeaderProps {
 }
 
 function Header({ isEdit, tables, onClose }: HeaderProps) {
+  const { getTable } = useFloorTables()
   return (
     <div className="flex shrink-0 items-start gap-3 border-b border-hair bg-card px-[22px] pt-3 pb-[14px] sm:px-7 sm:pt-5 sm:pb-[18px]">
       <div className="min-w-0 flex-1">
@@ -466,7 +467,7 @@ function Header({ isEdit, tables, onClose }: HeaderProps) {
           {isEdit ? "Edit Reservation" : "New Reservation"}
         </div>
         <div className="mt-1 truncate text-[11px] tracking-[0.04em] text-brand-ink-soft sm:text-[11.5px] sm:tracking-[0.06em]">
-          {tableSubtitle(tables)}
+          {tableSubtitle(tables, getTable)}
         </div>
       </div>
       <IconButton ariaLabel="Close" onClick={onClose}>
@@ -972,6 +973,7 @@ function TableField({
   disabled?: boolean
 }) {
   const [open, setOpen] = React.useState(false)
+  const { getTable, bySection } = useFloorTables()
   const def = value ? getTable(value) : null
   const display = def
     ? `${def.section[0].toUpperCase()}${def.section.slice(1)} · ${
@@ -981,11 +983,11 @@ function TableField({
 
   const grouped = React.useMemo(() => {
     return {
-      bar: ALL_TABLES.filter((t) => t.section === "bar"),
-      indoor: ALL_TABLES.filter((t) => t.section === "indoor"),
-      terrace: ALL_TABLES.filter((t) => t.section === "terrace"),
+      bar: bySection("bar", { activeOnly: true }),
+      indoor: bySection("indoor", { activeOnly: true }),
+      terrace: bySection("terrace", { activeOnly: true }),
     }
-  }, [])
+  }, [bySection])
 
   return (
     <div>
@@ -1114,6 +1116,7 @@ function MergeField({
   disabled?: boolean
 }) {
   const [open, setOpen] = React.useState(false)
+  const { getTable } = useFloorTables()
 
   const mergedSibs = selected.filter((t) => t !== primaryTableId)
 

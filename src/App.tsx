@@ -3,6 +3,7 @@ import { Toaster } from "sonner"
 
 import { AuthProvider, useAuth } from "@/contexts/AuthContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
+import { TablesProvider } from "@/contexts/TablesContext"
 import Login from "@/pages/Login"
 import Calendar from "@/pages/Calendar"
 import DayBoard from "@/pages/DayBoard"
@@ -51,7 +52,9 @@ function App() {
               path="/day/:date"
               element={
                 <ProtectedRoute>
-                  <DayBoard />
+                  <TablesProvider>
+                    <DayBoard />
+                  </TablesProvider>
                 </ProtectedRoute>
               }
             />
