@@ -451,6 +451,15 @@ interface TableRow {
 // invalidate this in P4 once it can mutate tables).
 let tableIdMapCache: Map<string, number> | null = null
 
+/**
+ * Drop the cached label→id map. Settings calls this after any table
+ * create/patch/delete so the next reservation mutation re-reads `GET /tables`
+ * (new labels resolve, removed ones stop resolving).
+ */
+export function invalidateTableIdMap(): void {
+  tableIdMapCache = null
+}
+
 async function getTableIdMap(): Promise<Map<string, number>> {
   if (tableIdMapCache) return tableIdMapCache
   const res = await apiFetch<TableRow[]>("/tables")
