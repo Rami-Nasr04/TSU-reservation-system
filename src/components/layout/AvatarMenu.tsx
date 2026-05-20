@@ -28,9 +28,10 @@ function initialsOf(name: string): string {
 
 export function AvatarMenu({ className }: AvatarMenuProps) {
   const navigate = useNavigate()
-  const { user, userGroups, signOut } = useAuth()
+  const { user, userGroups, signOut, hasRole } = useAuth()
   if (!user) return null
   const role = userGroups[0]
+  const isManager = hasRole("manager")
 
   return (
     <DropdownMenu>
@@ -63,10 +64,12 @@ export function AvatarMenu({ className }: AvatarMenuProps) {
           <Users className="size-3.5" />
           <span>Customers</span>
         </DropdownMenuItem>
-        <DropdownMenuItem>
-          <Settings className="size-3.5" />
-          <span>Settings</span>
-        </DropdownMenuItem>
+        {isManager && (
+          <DropdownMenuItem onClick={() => navigate("/settings")}>
+            <Settings className="size-3.5" />
+            <span>Settings</span>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => signOut()}

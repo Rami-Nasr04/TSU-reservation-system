@@ -7,6 +7,7 @@ import Login from "@/pages/Login"
 import Calendar from "@/pages/Calendar"
 import DayBoard from "@/pages/DayBoard"
 import Customers from "@/pages/Customers"
+import Settings from "@/pages/Settings"
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -59,6 +60,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Customers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
                 </ProtectedRoute>
               }
             />
