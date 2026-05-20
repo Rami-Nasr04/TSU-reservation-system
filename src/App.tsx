@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext"
 import Login from "@/pages/Login"
 import Calendar from "@/pages/Calendar"
 import DayBoard from "@/pages/DayBoard"
+import Customers from "@/pages/Customers"
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -50,6 +51,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DayBoard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customers"
+              element={
+                <ProtectedRoute>
+                  <Customers />
                 </ProtectedRoute>
               }
             />

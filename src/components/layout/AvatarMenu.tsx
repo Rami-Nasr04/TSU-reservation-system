@@ -1,4 +1,5 @@
-import { ChevronDown, LogOut, Settings, User } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+import { ChevronDown, LogOut, Settings, Users } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,7 @@ function initialsOf(name: string): string {
 }
 
 export function AvatarMenu({ className }: AvatarMenuProps) {
+  const navigate = useNavigate()
   const { user, userGroups, signOut } = useAuth()
   if (!user) return null
   const role = userGroups[0]
@@ -57,9 +59,9 @@ export function AvatarMenu({ className }: AvatarMenuProps) {
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <User className="size-3.5" />
-          <span>Profile</span>
+        <DropdownMenuItem onClick={() => navigate("/customers")}>
+          <Users className="size-3.5" />
+          <span>Customers</span>
         </DropdownMenuItem>
         <DropdownMenuItem>
           <Settings className="size-3.5" />
