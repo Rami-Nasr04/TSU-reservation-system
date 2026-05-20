@@ -19,6 +19,8 @@ import {
   DrawerContent,
   DrawerTitle,
 } from "@/components/ui/drawer"
+import { toast } from "sonner"
+
 import { useDay } from "@/hooks/useDay"
 import {
   dayLabel,
@@ -29,7 +31,15 @@ import {
   todayParts,
 } from "@/lib/dates"
 import { cn } from "@/lib/utils"
-import type { DayFeed, Reservation } from "@/services/reservationsService"
+import {
+  createReservation,
+  updateReservation,
+} from "@/services/reservationsService"
+import type {
+  DayFeed,
+  Reservation,
+  ReservationInput,
+} from "@/services/reservationsService"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -148,12 +158,33 @@ export default function DayBoard() {
     openModal({ kind: "reservation" })
   }
 
-  function handleSave(r: Reservation) {
-    setLocalReservations((prev) => {
-      const idx = prev.findIndex((x) => x.id === r.id)
-      if (idx >= 0) return prev.map((x, i) => (i === idx ? r : x))
-      return [...prev, r]
-    })
+  // New reservations carry a temp id minted by the modals (res-… / walkin-…);
+  // anything else is a persisted row being edited.
+  function isNewId(id: string): boolean {
+    return id.startsWith("res-") || id.startsWith("walkin-")
+  }
+
+  // Sync-await: the modal stays open during the call and closes only on success.
+  // localReservations is updated from the SERVER row (real id, enriched fields),
+  // so useMergedFeed reconciles cleanly on the next day refetch.
+  async function handleSave(r: Reservation, input: ReservationInput) {
+    try {
+      const saved = isNewId(r.id)
+        ? await createReservation(input)
+        : await updateReservation(r.id, input)
+      setLocalReservations((prev) => {
+        const idx = prev.findIndex((x) => x.id === r.id || x.id === saved.id)
+        if (idx >= 0) return prev.map((x, i) => (i === idx ? saved : x))
+        return [...prev, saved]
+      })
+      toast.success("Reservation saved")
+      closeModal()
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't save. Please try again.",
+      )
+      throw err // let the modal re-enable its button
+    }
   }
 
   function handleCheckout() {
@@ -249,6 +280,7 @@ export default function DayBoard() {
           key={modalRevision}
           open
           onClose={closeModal}
+          date={date}
           tableId={modal.tableId}
           onSave={handleSave}
         />
@@ -270,6 +302,7 @@ export default function DayBoard() {
           key={modalRevision}
           open
           onClose={closeModal}
+          date={date}
           reservation={modal.reservation}
           onSave={handleSave}
         />

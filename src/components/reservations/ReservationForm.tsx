@@ -22,6 +22,7 @@ import { bucketShift } from "@/services/reservationsService"
 import { lookupCustomer } from "@/services/customersService"
 import type {
   Reservation,
+  ReservationInput,
   ReservationOccasion,
   ReservationStatus,
 } from "@/services/reservationsService"
@@ -42,7 +43,7 @@ interface ReservationFormProps {
   date: string
   initialTableId?: string
   reservation?: Reservation
-  onSave: (r: Reservation) => void
+  onSave: (r: Reservation, input: ReservationInput) => Promise<void>
   onCheckout?: () => void
 }
 
@@ -139,6 +140,7 @@ export function ReservationForm({
     vip: boolean
   } | null>(null)
   const [confirmDelete, setConfirmDelete] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
 
   const nameRef = React.useRef<HTMLInputElement>(null)
 
@@ -166,7 +168,7 @@ export function ReservationForm({
         if (customer) {
           setLookupHit({
             name: customer.name,
-            visits: 1 + Math.floor(Math.random() * 18),
+            visits: customer.visitCount,
             vip: customer.vip,
           })
           if (!nameSnap.current.trim()) setName(customer.name)
@@ -220,6 +222,34 @@ export function ReservationForm({
     }
   }
 
+  function buildInput(statusOverride?: ReservationStatus): ReservationInput {
+    const finalTables =
+      tables.length > 0 ? tables : initialTableId ? [initialTableId] : []
+    return {
+      // New bookings upsert the customer from the form; edits preserve the
+      // existing link (customer editing lives in the P3 CRM, not here).
+      customer: isEdit
+        ? null
+        : {
+            name: name.trim() || null,
+            phone: phone.trim() || null,
+            email: email.trim() || null,
+            vip,
+          },
+      customerId: reservation?.customerId ?? null,
+      date,
+      start_time: time,
+      pax,
+      status: statusOverride ?? reservation?.status ?? "booked",
+      is_walk_in: reservation?.isWalkIn ?? false,
+      occasion: occasion === "" ? null : occasion,
+      notes: notes.trim() || null,
+      total_bill: reservation?.totalBill ?? null,
+      amount_paid: reservation?.amountPaid ?? null,
+      tables: finalTables,
+    }
+  }
+
   function validate(): boolean {
     let ok = true
     if (name.trim() === "") {
@@ -240,25 +270,32 @@ export function ReservationForm({
     return ok
   }
 
+  // Sync-await: stays open during the call, parent closes on success and shows
+  // the toast; on failure we re-enable the buttons so the host can retry.
+  async function submit(statusOverride?: ReservationStatus, requireValid = true) {
+    if (saving) return
+    if (requireValid && !validate()) return
+    setSaving(true)
+    try {
+      await onSave(buildReservation(statusOverride), buildInput(statusOverride))
+    } catch {
+      setSaving(false)
+    }
+  }
+
   function handleSave() {
-    if (!validate()) return
-    onSave(buildReservation())
-    onClose()
+    void submit()
   }
   function handleSeat() {
-    if (!validate()) return
-    onSave(buildReservation("seated"))
-    onClose()
+    void submit("seated")
   }
   function handleNoShow() {
     if (!reservation) return
-    onSave({ ...reservation, status: "noshow" })
-    onClose()
+    void submit("noshow", false)
   }
   function handleCancelReservation() {
     if (!reservation) return
-    onSave({ ...reservation, status: "cancelled" })
-    onClose()
+    void submit("cancelled", false)
   }
   function handleCheckoutClick() {
     onCheckout?.()
@@ -300,6 +337,7 @@ export function ReservationForm({
             {isEdit && status && (
               <StatusStrip
                 status={status}
+                saving={saving}
                 onSeat={canSeat ? handleSeat : undefined}
                 onCheckout={canCheckout ? handleCheckoutClick : undefined}
                 onNoShow={canNoShow ? handleNoShow : undefined}
@@ -382,6 +420,7 @@ export function ReservationForm({
           <Footer
             isEdit={isEdit}
             isTerminal={isTerminal}
+            saving={saving}
             onClose={onClose}
             onSave={handleSave}
             onAskDelete={() => setConfirmDelete(true)}
@@ -443,6 +482,7 @@ function Header({ isEdit, tables, onClose }: HeaderProps) {
 
 interface StatusStripProps {
   status: ReservationStatus
+  saving?: boolean
   onSeat?: () => void
   onCheckout?: () => void
   onNoShow?: () => void
@@ -490,7 +530,7 @@ const STATUS_META: Record<
   },
 }
 
-function StatusStrip({ status, onSeat, onCheckout, onNoShow, onCancel }: StatusStripProps) {
+function StatusStrip({ status, saving, onSeat, onCheckout, onNoShow, onCancel }: StatusStripProps) {
   const meta = STATUS_META[status]
   const actions: Array<{ label: string; onClick: () => void; primary?: boolean }> = []
   if (onSeat) actions.push({ label: "Mark Seated", onClick: onSeat, primary: true })
@@ -531,9 +571,11 @@ function StatusStrip({ status, onSeat, onCheckout, onNoShow, onCancel }: StatusS
               key={a.label}
               type="button"
               onClick={a.onClick}
+              disabled={saving}
               className={cn(
                 "h-[30px] rounded-[3px] px-3 text-[10.5px] font-medium tracking-[0.18em] uppercase",
                 "transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30",
+                "disabled:cursor-not-allowed disabled:opacity-50",
                 i === 0 && a.primary
                   ? meta.primaryBg
                   : cn("bg-card border", meta.ghostBorder, "hover:bg-foreground/[0.04]"),
@@ -1263,12 +1305,14 @@ function NotesField({
 function Footer({
   isEdit,
   isTerminal,
+  saving,
   onClose,
   onSave,
   onAskDelete,
 }: {
   isEdit: boolean
   isTerminal: boolean
+  saving: boolean
   onClose: () => void
   onSave: () => void
   onAskDelete: () => void
@@ -1276,17 +1320,19 @@ function Footer({
   return (
     <div className="flex shrink-0 items-center justify-between gap-2 border-t border-hair bg-card px-[18px] py-3 sm:px-6 sm:py-3.5">
       <div className="inline-flex gap-2">
-        <button type="button" onClick={onClose} className={btnGhost}>
+        <button type="button" onClick={onClose} disabled={saving} className={cn(btnGhost, "disabled:cursor-not-allowed disabled:opacity-50")}>
           {isTerminal ? "Close" : "Cancel"}
         </button>
         {isEdit && !isTerminal && (
           <button
             type="button"
             onClick={onAskDelete}
+            disabled={saving}
             className={cn(
               btnGhost,
               "hidden items-center gap-1.5 text-primary sm:inline-flex",
               "border-primary/30 hover:bg-primary/[0.06]",
+              "disabled:cursor-not-allowed disabled:opacity-50",
             )}
           >
             <Trash2 className="size-[13px]" strokeWidth={1.4} />
@@ -1298,15 +1344,17 @@ function Footer({
         <button
           type="button"
           onClick={onSave}
+          disabled={saving}
           className={cn(
             "h-9 rounded-[3px] bg-primary px-4 text-[11px] font-medium tracking-[0.22em] uppercase text-primary-foreground",
             "shadow-[0_6px_18px_-6px_oklch(0.572_0.165_28.5/0.50)]",
             "hover:bg-brand-red-dark transition-colors duration-150",
             "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/40",
+            "disabled:cursor-not-allowed disabled:opacity-60",
             "max-sm:flex-1",
           )}
         >
-          {isEdit ? "Save changes" : "Save reservation"}
+          {saving ? "Saving…" : isEdit ? "Save changes" : "Save reservation"}
         </button>
       )}
     </div>

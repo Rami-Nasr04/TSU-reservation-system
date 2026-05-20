@@ -10,7 +10,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { getTable } from "@/lib/tables"
-import type { Reservation } from "@/services/reservationsService"
+import type { Reservation, ReservationInput } from "@/services/reservationsService"
 import { DialogOverlay, DialogTitle } from "@/components/ui/dialog"
 
 // ---------------------------------------------------------------------------
@@ -20,8 +20,9 @@ import { DialogOverlay, DialogTitle } from "@/components/ui/dialog"
 interface CheckoutDialogProps {
   open: boolean
   onClose: () => void
+  date: string
   reservation: Reservation
-  onSave: (r: Reservation) => void
+  onSave: (r: Reservation, input: ReservationInput) => Promise<void>
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +78,7 @@ function durationSince(seatedTime: string): string {
 export function CheckoutDialog({
   open,
   onClose,
+  date,
   reservation,
   onSave,
 }: CheckoutDialogProps) {
@@ -91,6 +93,7 @@ export function CheckoutDialog({
   )
   const [notes, setNotes] = React.useState<string>("")
   const [focusField, setFocusField] = React.useState<"total" | "paid" | null>(null)
+  const [saving, setSaving] = React.useState(false)
 
   const totalRef = React.useRef<HTMLInputElement>(null)
 
@@ -109,21 +112,41 @@ export function CheckoutDialog({
   const exact = tip !== null && Math.abs(tip) < 0.005
   const canSubmit = hasBoth && !underpaid
 
-  function handleSubmit() {
-    if (!canSubmit || locked) return
-    onSave({
+  async function handleSubmit() {
+    if (!canSubmit || locked || saving) return
+    const mergedNotes = notes.trim()
+      ? reservation.notes
+        ? `${reservation.notes}\n— Checkout: ${notes.trim()}`
+        : notes.trim()
+      : reservation.notes
+    const updated: Reservation = {
       ...reservation,
       status: "completed",
       totalBill: totalN,
       amountPaid: paidN,
       tip: tip ?? 0,
-      notes: notes.trim()
-        ? reservation.notes
-          ? `${reservation.notes}\n— Checkout: ${notes.trim()}`
-          : notes.trim()
-        : reservation.notes,
-    })
-    onClose()
+      notes: mergedNotes,
+    }
+    const input: ReservationInput = {
+      customer: null,
+      customerId: reservation.customerId ?? null,
+      date,
+      start_time: reservation.time,
+      pax: reservation.pax,
+      status: "completed",
+      is_walk_in: reservation.isWalkIn,
+      occasion: reservation.occasion ?? null,
+      notes: mergedNotes ?? null,
+      total_bill: totalN,
+      amount_paid: paidN,
+      tables: reservation.tables,
+    }
+    setSaving(true)
+    try {
+      await onSave(updated, input)
+    } catch {
+      setSaving(false)
+    }
   }
 
   const seatedAt = reservation.time
@@ -243,6 +266,7 @@ export function CheckoutDialog({
           <Footer
             locked={locked}
             canSubmit={canSubmit}
+            saving={saving}
             onSubmit={handleSubmit}
             onClose={onClose}
           />
@@ -509,11 +533,13 @@ function TipRow({
 function Footer({
   locked,
   canSubmit,
+  saving,
   onSubmit,
   onClose,
 }: {
   locked: boolean
   canSubmit: boolean
+  saving: boolean
   onSubmit: () => void
   onClose: () => void
 }) {
@@ -545,10 +571,12 @@ function Footer({
       <button
         type="button"
         onClick={onClose}
+        disabled={saving}
         className={cn(
           "h-12 rounded-[3px] border border-hair-strong bg-card px-5 text-[11px] font-medium tracking-[0.22em] uppercase text-foreground sm:h-[46px]",
           "transition-colors hover:bg-foreground/[0.04]",
           "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-foreground/10",
+          "disabled:cursor-not-allowed disabled:opacity-50",
         )}
       >
         Cancel
@@ -556,18 +584,18 @@ function Footer({
       <button
         type="button"
         onClick={onSubmit}
-        disabled={!canSubmit}
+        disabled={!canSubmit || saving}
         className={cn(
           "inline-flex h-12 flex-1 items-center justify-center gap-2.5 rounded-[3px] text-[12px] font-medium tracking-[0.22em] uppercase",
           "transition-all duration-150 sm:h-[46px] sm:text-[11.5px]",
           "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/40",
-          canSubmit
+          canSubmit && !saving
             ? "bg-primary text-primary-foreground shadow-[0_6px_18px_-6px_oklch(0.572_0.165_28.5/0.50)] hover:bg-brand-red-dark"
             : "cursor-not-allowed bg-primary/35 text-primary-foreground",
         )}
       >
         <Check className="size-[13px]" strokeWidth={1.6} />
-        Complete Reservation
+        {saving ? "Completing…" : "Complete Reservation"}
       </button>
     </div>
   )

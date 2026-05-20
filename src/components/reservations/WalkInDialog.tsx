@@ -4,7 +4,7 @@ import { Minus, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { nowRounded15 } from "@/lib/dates"
 import { bucketShift } from "@/services/reservationsService"
-import type { Reservation } from "@/services/reservationsService"
+import type { Reservation, ReservationInput } from "@/services/reservationsService"
 import {
   Dialog,
   DialogContent,
@@ -16,33 +16,38 @@ import {
 interface WalkInDialogProps {
   open: boolean
   onClose: () => void
+  date: string
   tableId: string
-  onSave: (r: Reservation) => void
+  onSave: (r: Reservation, input: ReservationInput) => Promise<void>
 }
 
 export function WalkInDialog({
   open,
   onClose,
+  date,
   tableId,
   onSave,
 }: WalkInDialogProps) {
   const [pax, setPax] = React.useState(2)
   const [name, setName] = React.useState("")
   const [notes, setNotes] = React.useState("")
+  const [saving, setSaving] = React.useState(false)
 
   function handleClose() {
+    if (saving) return
     setPax(2)
     setName("")
     setNotes("")
     onClose()
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (saving) return
     const time = nowRounded15()
     const reservation: Reservation = {
       id: `walkin-${Date.now()}`,
       time,
-      name: name.trim() || "Walk-in",
+      name: "Walk-in",
       pax,
       tables: [tableId],
       status: "seated",
@@ -51,8 +56,29 @@ export function WalkInDialog({
       vip: false,
       notes: notes.trim() || undefined,
     }
-    onSave(reservation)
-    handleClose()
+    // Walk-ins are always anonymous on creation (locked decision) — never create
+    // a customer here, even if a name is typed. Linking happens later via the
+    // explicit "Add customer info" action on the seated reservation.
+    const input: ReservationInput = {
+      customer: null,
+      customerId: null,
+      date,
+      start_time: time,
+      pax,
+      status: "seated",
+      is_walk_in: true,
+      occasion: null,
+      notes: notes.trim() || null,
+      total_bill: null,
+      amount_paid: null,
+      tables: [tableId],
+    }
+    setSaving(true)
+    try {
+      await onSave(reservation, input)
+    } catch {
+      setSaving(false)
+    }
   }
 
   return (
@@ -155,11 +181,13 @@ export function WalkInDialog({
           <button
             type="button"
             onClick={handleClose}
+            disabled={saving}
             className={cn(
               "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
               "border border-hair text-brand-ink-soft",
               "hover:text-foreground hover:border-foreground/30 transition-colors duration-150",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+              "disabled:cursor-not-allowed disabled:opacity-50",
             )}
           >
             Cancel
@@ -167,14 +195,16 @@ export function WalkInDialog({
           <button
             type="button"
             onClick={handleSave}
+            disabled={saving}
             className={cn(
               "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
               "bg-primary text-primary-foreground",
               "hover:bg-brand-red-dark transition-colors duration-150",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+              "disabled:cursor-not-allowed disabled:opacity-60",
             )}
           >
-            Seat Walk-in
+            {saving ? "Seating…" : "Seat Walk-in"}
           </button>
         </DialogFooter>
       </DialogContent>
