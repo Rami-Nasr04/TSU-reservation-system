@@ -32,7 +32,7 @@ interface UseDayResult {
   error: string | null
 }
 
-export function useDay(date: string): UseDayResult {
+export function useDay(date: string, reloadKey?: number): UseDayResult {
   const [state, dispatch] = React.useReducer(reducer, initial)
 
   React.useEffect(() => {
@@ -53,7 +53,7 @@ export function useDay(date: string): UseDayResult {
     return () => {
       cancelled = true
     }
-  }, [date])
+  }, [date, reloadKey])
 
   return { data: state.data, isLoading: state.isLoading, error: state.error }
 }

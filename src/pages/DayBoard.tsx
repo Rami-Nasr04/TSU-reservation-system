@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/drawer"
 import { toast } from "sonner"
 
+import { EmptyDayState } from "@/components/states/EmptyDayState"
+import { ErrorState } from "@/components/states/ErrorState"
 import { useDay } from "@/hooks/useDay"
 import {
   dayLabel,
@@ -42,6 +44,12 @@ import type {
   Reservation,
   ReservationInput,
 } from "@/services/reservationsService"
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const WALK_IN_HINT = "Tap a free table to seat a walk-in"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -125,7 +133,8 @@ export default function DayBoard() {
 
   const date = safeDate(dateParam)
   const parts = parseDateISO(date)!
-  const { data, isLoading } = useDay(date)
+  const [reloadNonce, setReloadNonce] = React.useState(0)
+  const { data, isLoading, error } = useDay(date, reloadNonce)
 
   const [activeShift, setActiveShift] = React.useState<ActiveShift>("all")
   const [drawerOpen, setDrawerOpen] = React.useState(false)
@@ -134,6 +143,7 @@ export default function DayBoard() {
   const [localReservations, setLocalReservations] = React.useState<Reservation[]>([])
 
   const feed = useMergedFeed(data, localReservations)
+  const isEmpty = !!feed && feed.reservations.length === 0
 
   function goDay(delta: number) {
     navigate(`/day/${shiftDateISO(date, delta)}`)
@@ -263,43 +273,65 @@ export default function DayBoard() {
         isMobile={isMobile}
       />
 
-      {isLoading || !feed ? (
-        <div className="py-12 text-center text-[11px] tracking-[0.22em] uppercase text-brand-ink-mute">
-          Loading…
+      {error && !data ? (
+        <div className="h-[calc(100dvh-56px)] sm:h-[calc(100dvh-64px)]">
+          <ErrorState
+            onRetry={() => setReloadNonce((n) => n + 1)}
+            onBackToCalendar={() => navigate("/")}
+          />
         </div>
-      ) : isMobile ? (
-        <MobileBody
-          feed={feed}
-          activeShift={activeShift}
-          drawerOpen={drawerOpen}
-          onOpenDrawer={() => setDrawerOpen(true)}
-          onCloseDrawer={() => setDrawerOpen(false)}
-          onTableClick={handleTableClick}
-          onReservationClick={handleReservationClick}
-        />
       ) : (
-        <main
-          className={cn(
-            "grid min-h-0 flex-1 gap-5 overflow-hidden",
-            "p-3.5 sm:p-5 lg:p-6",
-            isTablet ? "grid-cols-[38%_62%]" : "grid-cols-[35%_65%]",
-            "h-[calc(100dvh-56px-46px)] sm:h-[calc(100dvh-64px-52px)]",
-          )}
-        >
-          <div className="min-h-0">
-            <ListPanel
+        <>
+          {isLoading || !feed ? (
+            <div className="py-12 text-center text-[11px] tracking-[0.22em] uppercase text-brand-ink-mute">
+              Loading…
+            </div>
+          ) : isMobile ? (
+            <MobileBody
               feed={feed}
               activeShift={activeShift}
-              onReservationClick={handleReservationClick}
-            />
-          </div>
-          <div className="min-h-0 rounded-[3px] border border-hair bg-card p-4 lg:p-5">
-            <FloorView
-              reservations={feed.reservations}
+              isEmpty={isEmpty}
+              drawerOpen={drawerOpen}
+              onOpenDrawer={() => setDrawerOpen(true)}
+              onCloseDrawer={() => setDrawerOpen(false)}
               onTableClick={handleTableClick}
+              onReservationClick={handleReservationClick}
+              onNewReservation={handleNewReservation}
             />
-          </div>
-        </main>
+          ) : (
+            <main
+              className={cn(
+                "grid min-h-0 flex-1 gap-5 overflow-hidden",
+                "p-3.5 sm:p-5 lg:p-6",
+                isTablet ? "grid-cols-[38%_62%]" : "grid-cols-[35%_65%]",
+                "h-[calc(100dvh-56px-46px)] sm:h-[calc(100dvh-64px-52px)]",
+              )}
+            >
+              <div className="min-h-0">
+                {isEmpty ? (
+                  <EmptyDayState
+                    onNewReservation={handleNewReservation}
+                    onAddWalkIn={() =>
+                      toast.info(WALK_IN_HINT)
+                    }
+                  />
+                ) : (
+                  <ListPanel
+                    feed={feed}
+                    activeShift={activeShift}
+                    onReservationClick={handleReservationClick}
+                  />
+                )}
+              </div>
+              <div className="min-h-0 rounded-[3px] border border-hair bg-card p-4 lg:p-5">
+                <FloorView
+                  reservations={feed.reservations}
+                  onTableClick={handleTableClick}
+                />
+              </div>
+            </main>
+          )}
+        </>
       )}
 
       {/* Modals */}
@@ -346,22 +378,31 @@ export default function DayBoard() {
 interface MobileBodyProps {
   feed: DayFeed
   activeShift: ActiveShift
+  isEmpty: boolean
   drawerOpen: boolean
   onOpenDrawer: () => void
   onCloseDrawer: () => void
   onTableClick: (tableId: string, resv?: Reservation) => void
   onReservationClick: (r: Reservation) => void
+  onNewReservation: () => void
 }
 
 function MobileBody({
   feed,
   activeShift,
+  isEmpty,
   drawerOpen,
   onOpenDrawer,
   onCloseDrawer,
   onTableClick,
   onReservationClick,
+  onNewReservation,
 }: MobileBodyProps) {
+  function handleAddWalkIn() {
+    onCloseDrawer()
+    toast.info(WALK_IN_HINT)
+  }
+
   return (
     <div className="relative flex flex-1 flex-col min-h-0">
       <main className="m-3 flex-1 min-h-0 overflow-auto rounded-[3px] border border-hair bg-card p-3 pb-20">
@@ -381,12 +422,19 @@ function MobileBody({
       >
         <DrawerContent className="h-[78dvh]">
           <DrawerTitle className="sr-only">Reservations</DrawerTitle>
-          <ListPanel
-            feed={feed}
-            activeShift={activeShift}
-            embedded
-            onReservationClick={onReservationClick}
-          />
+          {isEmpty ? (
+            <EmptyDayState
+              onNewReservation={onNewReservation}
+              onAddWalkIn={handleAddWalkIn}
+            />
+          ) : (
+            <ListPanel
+              feed={feed}
+              activeShift={activeShift}
+              embedded
+              onReservationClick={onReservationClick}
+            />
+          )}
         </DrawerContent>
       </Drawer>
     </div>
