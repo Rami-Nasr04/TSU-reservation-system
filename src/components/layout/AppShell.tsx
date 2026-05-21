@@ -1,5 +1,8 @@
 import * as React from "react"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useOnline } from "@/hooks/useOnline"
+import { OfflineBanner } from "@/components/states/OfflineBanner"
 import { Header } from "./Header"
 
 interface AppShellProps {
@@ -20,8 +23,16 @@ export function AppShell({
   children,
   className,
 }: AppShellProps) {
+  const online = useOnline()
   return (
     <div className="min-h-dvh bg-background bg-pinstripe text-foreground">
+      {!online && (
+        <OfflineBanner
+          onRetry={() => {
+            if (!navigator.onLine) toast.info("Still offline — check your connection.")
+          }}
+        />
+      )}
       <Header left={headerLeft} center={headerCenter} actions={headerActions} />
       {bare ? (
         children
