@@ -36,7 +36,7 @@ function reducer(state: State, action: Action): State {
 
 const initial: State = { data: null, isLoading: true, error: null }
 
-export function useMonth(year: number, month0: number): UseMonthResult {
+export function useMonth(year: number, month0: number, reloadKey?: number): UseMonthResult {
   const [state, dispatch] = React.useReducer(reducer, initial)
 
   React.useEffect(() => {
@@ -57,7 +57,7 @@ export function useMonth(year: number, month0: number): UseMonthResult {
     return () => {
       cancelled = true
     }
-  }, [year, month0])
+  }, [year, month0, reloadKey])
 
   const max = React.useMemo(() => {
     if (!state.data) return 0

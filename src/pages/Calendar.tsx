@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { KpiStrip } from "@/components/calendar/KpiStrip"
 import { Legend } from "@/components/calendar/Legend"
 import { MonthGrid } from "@/components/calendar/MonthGrid"
+import { ErrorState } from "@/components/states/ErrorState"
 import { useMonth } from "@/hooks/useMonth"
 import { monthLabel, shiftMonth, todayParts } from "@/lib/dates"
 import { cn } from "@/lib/utils"
@@ -30,8 +31,9 @@ export default function Calendar() {
   const today = todayParts()
   const [year, setYear] = React.useState(today.year)
   const [month0, setMonth0] = React.useState(today.month0)
+  const [reloadNonce, setReloadNonce] = React.useState(0)
   const variant = useVariant()
-  const { data, isLoading, max } = useMonth(year, month0)
+  const { data, isLoading, max, error } = useMonth(year, month0, reloadNonce)
 
   function go(delta: number) {
     const next = shiftMonth(year, month0, delta)
@@ -94,20 +96,28 @@ export default function Calendar() {
 
   return (
     <AppShell headerCenter={headerCenter} headerActions={headerActions}>
-      {isMobile && (
-        <KpiStrip reservations={kpi.reservations} covers={kpi.covers} compact />
-      )}
-      {data && <MonthGrid feed={data} max={max} variant={variant} />}
-      {isLoading && !data && (
-        <div className="py-12 text-center text-[11px] tracking-[0.22em] uppercase text-brand-ink-mute">
-          Loading…
+      {error && !data ? (
+        <div className="min-h-[70dvh]">
+          <ErrorState onRetry={() => setReloadNonce((n) => n + 1)} />
         </div>
-      )}
-      {!isMobile && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <KpiStrip reservations={kpi.reservations} covers={kpi.covers} />
-          <Legend />
-        </div>
+      ) : (
+        <>
+          {isMobile && (
+            <KpiStrip reservations={kpi.reservations} covers={kpi.covers} compact />
+          )}
+          {data && <MonthGrid feed={data} max={max} variant={variant} />}
+          {isLoading && !data && (
+            <div className="py-12 text-center text-[11px] tracking-[0.22em] uppercase text-brand-ink-mute">
+              Loading…
+            </div>
+          )}
+          {!isMobile && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <KpiStrip reservations={kpi.reservations} covers={kpi.covers} />
+              <Legend />
+            </div>
+          )}
+        </>
       )}
     </AppShell>
   )
