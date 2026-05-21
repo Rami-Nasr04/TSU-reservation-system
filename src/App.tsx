@@ -9,6 +9,7 @@ import Calendar from "@/pages/Calendar"
 import DayBoard from "@/pages/DayBoard"
 import Customers from "@/pages/Customers"
 import Settings from "@/pages/Settings"
+import Analytics from "@/pages/Analytics"
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -71,6 +72,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
                 </ProtectedRoute>
               }
             />

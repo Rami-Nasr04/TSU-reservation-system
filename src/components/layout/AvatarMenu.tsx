@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom"
-import { ChevronDown, LogOut, Settings, Users } from "lucide-react"
+import { BarChart3, ChevronDown, LogOut, Settings, Users } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,6 +64,12 @@ export function AvatarMenu({ className }: AvatarMenuProps) {
           <Users className="size-3.5" />
           <span>Customers</span>
         </DropdownMenuItem>
+        {isManager && (
+          <DropdownMenuItem onClick={() => navigate("/analytics")}>
+            <BarChart3 className="size-3.5" />
+            <span>Analytics</span>
+          </DropdownMenuItem>
+        )}
         {isManager && (
           <DropdownMenuItem onClick={() => navigate("/settings")}>
             <Settings className="size-3.5" />
