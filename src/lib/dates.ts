@@ -116,3 +116,26 @@ export function shiftDateISO(iso: string, deltaDays: number): string {
   const d = new Date(parts.year, parts.month0, parts.day + deltaDays)
   return formatDateISO(d.getFullYear(), d.getMonth(), d.getDate())
 }
+
+/** "HH:mm" → minutes since midnight. */
+export function hhmmToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number)
+  return h * 60 + m
+}
+
+/** Current local time as minutes since midnight. */
+export function nowMinutes(): number {
+  const d = new Date()
+  return d.getHours() * 60 + d.getMinutes()
+}
+
+/** Compact duration label: 138 → "2h 18m", 48 → "48m", ≤0 → "0m". */
+export function formatDurationShort(mins: number): string {
+  const clamped = Math.max(0, Math.round(mins))
+  if (clamped === 0) return "0m"
+  const h = Math.floor(clamped / 60)
+  const m = clamped % 60
+  if (h === 0) return `${m}m`
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}m`
+}
