@@ -1,6 +1,8 @@
 import * as React from "react"
 import { useNavigate, useParams } from "react-router-dom"
+import { MonitorPlay } from "lucide-react"
 
+import { useAuth } from "@/contexts/AuthContext"
 import { AppShell } from "@/components/layout/AppShell"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { BackLink } from "@/components/dayboard/BackLink"
@@ -116,6 +118,7 @@ function useMergedFeed(
 export default function DayBoard() {
   const { date: dateParam } = useParams()
   const navigate = useNavigate()
+  const { hasRole } = useAuth()
   const variant = useVariant()
   const isMobile = variant === "mobile"
   const isTablet = variant === "tablet"
@@ -209,6 +212,31 @@ export default function DayBoard() {
   )
   const headerActions = (
     <>
+      {hasRole("manager") && (
+        isMobile ? (
+          <button
+            type="button"
+            aria-label="Service Mode"
+            onClick={() => navigate(`/day/${date}/service`)}
+            className="inline-flex size-8 items-center justify-center rounded-[3px] border border-hair-strong text-brand-ink-soft"
+          >
+            <MonitorPlay size={14} strokeWidth={1.4} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigate(`/day/${date}/service`)}
+            className={cn(
+              "inline-flex h-8 items-center gap-2 rounded-[3px] border border-hair-strong px-3",
+              "text-[10.5px] font-medium uppercase tracking-[0.22em] text-brand-ink-soft",
+              "transition-colors hover:text-foreground hover:border-foreground/30",
+            )}
+          >
+            <MonitorPlay size={12} strokeWidth={1.4} />
+            Service
+          </button>
+        )
+      )}
       <NewReservationButton isMobile={isMobile} onClick={handleNewReservation} />
       <ThemeToggle />
     </>

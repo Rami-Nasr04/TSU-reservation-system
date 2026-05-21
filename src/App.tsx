@@ -10,6 +10,7 @@ import DayBoard from "@/pages/DayBoard"
 import Customers from "@/pages/Customers"
 import Settings from "@/pages/Settings"
 import Analytics from "@/pages/Analytics"
+import ServiceMode from "@/pages/ServiceMode"
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -55,6 +56,16 @@ function App() {
                 <ProtectedRoute>
                   <TablesProvider>
                     <DayBoard />
+                  </TablesProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/day/:date/service"
+              element={
+                <ProtectedRoute>
+                  <TablesProvider>
+                    <ServiceMode />
                   </TablesProvider>
                 </ProtectedRoute>
               }
