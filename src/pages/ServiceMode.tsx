@@ -162,11 +162,11 @@ export default function ServiceMode() {
           <main
             className={cn(
               "min-h-0 flex-1",
+              // Mobile/tablet: vertical stack, page scrolls
+              "flex flex-col",
               // Desktop: fixed two-column split that fills remaining viewport
               "lg:grid lg:grid-cols-[1fr_380px] lg:overflow-hidden",
               "lg:h-[calc(100dvh-72px-1px-52px)]",
-              // Mobile/tablet: vertical stack, page scrolls
-              "flex flex-col lg:flex",
             )}
           >
             {/* Left / top — Floor view */}
