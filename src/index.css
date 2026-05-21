@@ -133,6 +133,20 @@
 }
 
 /* -----------------------------------------------------------------
+   Service Mode — scoped dark palette
+   ----------------------------------------------------------------- */
+[data-theme="service"] {
+  /* Service Mode — scoped dark palette. Hex from design handoff final-service-mode.jsx */
+  --background: oklch(0.135 0.010 270);         /* #0B0D11 */
+  --card: oklch(0.186 0.013 270);               /* #14171C — matches --brand-ink in :root */
+  --card-elevated: oklch(0.225 0.012 270);      /* #1B1F26 */
+  --foreground: oklch(0.950 0.006 85);          /* #F2EFE7 */
+  --primary: oklch(0.635 0.168 28);             /* #DD5A47 lifted red */
+  --brand-amber: oklch(0.745 0.115 75);         /* #D9A24C */
+  --brand-green: oklch(0.700 0.125 158);        /* #3FB37A */
+}
+
+/* -----------------------------------------------------------------
    Theme inline — expose tokens as Tailwind classes
    ----------------------------------------------------------------- */
 @theme inline {
@@ -184,6 +198,9 @@
   --color-brand-gold-soft: var(--brand-gold-soft);
   --color-brand-gold-deep: var(--brand-gold-deep);
   --color-brand-positive: var(--brand-positive);
+  --color-card-elevated: var(--card-elevated);
+  --color-brand-amber: var(--brand-amber);
+  --color-brand-green: var(--brand-green);
 
   /* fonts */
   --font-sans: 'Geist Variable', 'Helvetica Neue', system-ui, sans-serif;
@@ -208,6 +225,14 @@
     var(--pinstripe-line) 0 1px,
     transparent 1px 7px
   );
+}
+
+/* -----------------------------------------------------------------
+   Service Mode animations
+   ----------------------------------------------------------------- */
+@keyframes sm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 /* -----------------------------------------------------------------
