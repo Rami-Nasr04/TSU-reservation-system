@@ -22,6 +22,7 @@
   --brand-gold-deep: oklch(0.512 0.071 70);      /* darker gold for text on VIP toggle */
   --brand-ink-soft: oklch(0.508 0.009 270);      /* #6B6F76 secondary text */
   --brand-ink-mute: oklch(0.681 0.011 270);      /* #9AA0A8 tertiary / placeholder */
+  --brand-positive: oklch(0.55 0.11 158);        /* #1F8A5B — up-trend / positive delta */
 
   --brand-hair: oklch(0.186 0.013 270 / 0.08);
   --brand-hair-strong: oklch(0.186 0.013 270 / 0.14);
@@ -87,6 +88,7 @@
   --brand-gold: oklch(0.725 0.090 75);      /* lifted gold for dark mode */
   --brand-gold-soft: oklch(0.725 0.090 75 / 0.12);
   --brand-gold-deep: oklch(0.815 0.085 78);
+  --brand-positive: oklch(0.70 0.13 158);   /* lifted green for dark mode */
 
   --brand-hair: oklch(1 0 0 / 0.08);
   --brand-hair-strong: oklch(1 0 0 / 0.14);
@@ -181,6 +183,7 @@
   --color-brand-gold: var(--brand-gold);
   --color-brand-gold-soft: var(--brand-gold-soft);
   --color-brand-gold-deep: var(--brand-gold-deep);
+  --color-brand-positive: var(--brand-positive);
 
   /* fonts */
   --font-sans: 'Geist Variable', 'Helvetica Neue', system-ui, sans-serif;
