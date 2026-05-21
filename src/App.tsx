@@ -11,6 +11,7 @@ import Customers from "@/pages/Customers"
 import Settings from "@/pages/Settings"
 import Analytics from "@/pages/Analytics"
 import ServiceMode from "@/pages/ServiceMode"
+import NotFound from "@/pages/states/NotFound"
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -94,7 +95,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
         <Toaster position="top-center" richColors closeButton />
