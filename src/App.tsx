@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { Toaster } from "sonner"
 
@@ -6,12 +7,23 @@ import { ThemeProvider } from "@/contexts/ThemeContext"
 import { TablesProvider } from "@/contexts/TablesContext"
 import Login from "@/pages/Login"
 import Calendar from "@/pages/Calendar"
-import DayBoard from "@/pages/DayBoard"
-import Customers from "@/pages/Customers"
-import Settings from "@/pages/Settings"
-import Analytics from "@/pages/Analytics"
-import ServiceMode from "@/pages/ServiceMode"
-import NotFound from "@/pages/states/NotFound"
+
+const DayBoard = lazy(() => import("@/pages/DayBoard"))
+const ServiceMode = lazy(() => import("@/pages/ServiceMode"))
+const Customers = lazy(() => import("@/pages/Customers"))
+const Settings = lazy(() => import("@/pages/Settings"))
+const Analytics = lazy(() => import("@/pages/Analytics"))
+const NotFound = lazy(() => import("@/pages/states/NotFound"))
+
+function PageFallback() {
+  return (
+    <div className="grid min-h-dvh place-items-center bg-background">
+      <div className="text-[11px] uppercase tracking-[0.22em] text-brand-ink-mute">
+        Loading…
+      </div>
+    </div>
+  )
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -34,69 +46,71 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            <Route
-              path="/login"
-              element={
-                <PublicOnlyRoute>
-                  <Login />
-                </PublicOnlyRoute>
-              }
-            />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Calendar />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/day/:date"
-              element={
-                <ProtectedRoute>
-                  <TablesProvider>
-                    <DayBoard />
-                  </TablesProvider>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/day/:date/service"
-              element={
-                <ProtectedRoute>
-                  <TablesProvider>
-                    <ServiceMode />
-                  </TablesProvider>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/customers"
-              element={
-                <ProtectedRoute>
-                  <Customers />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <ProtectedRoute>
-                  <Analytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
+              <Route
+                path="/login"
+                element={
+                  <PublicOnlyRoute>
+                    <Login />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Calendar />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/day/:date"
+                element={
+                  <ProtectedRoute>
+                    <TablesProvider>
+                      <DayBoard />
+                    </TablesProvider>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/day/:date/service"
+                element={
+                  <ProtectedRoute>
+                    <TablesProvider>
+                      <ServiceMode />
+                    </TablesProvider>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/customers"
+                element={
+                  <ProtectedRoute>
+                    <Customers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/analytics"
+                element={
+                  <ProtectedRoute>
+                    <Analytics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
         <Toaster position="top-center" richColors closeButton />
       </AuthProvider>
