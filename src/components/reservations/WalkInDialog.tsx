@@ -1,17 +1,20 @@
 import * as React from "react"
-import { Minus, Plus } from "lucide-react"
+import { Minus, Plus, X, Zap } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { nowRounded15 } from "@/lib/dates"
 import { bucketShift } from "@/services/reservationsService"
 import type { Reservation, ReservationInput } from "@/services/reservationsService"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { useFloorTables } from "@/contexts/TablesContext"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+
+const QUICK_PAX = [1, 2, 3, 4, 5, 6] as const
+
+const SECTION_LABEL: Record<string, string> = {
+  bar: "Bar",
+  indoor: "Indoor",
+  terrace: "Terrace",
+}
 
 interface WalkInDialogProps {
   open: boolean
@@ -28,15 +31,19 @@ export function WalkInDialog({
   tableId,
   onSave,
 }: WalkInDialogProps) {
+  const { getTable } = useFloorTables()
+  const table = getTable(tableId)
+  const subtitle = table
+    ? `${SECTION_LABEL[table.section] ?? table.section} · Table ${table.id} (seats ${table.capacity})`
+    : `Table ${tableId}`
+
   const [pax, setPax] = React.useState(2)
-  const [name, setName] = React.useState("")
   const [notes, setNotes] = React.useState("")
   const [saving, setSaving] = React.useState(false)
 
   function handleClose() {
     if (saving) return
     setPax(2)
-    setName("")
     setNotes("")
     onClose()
   }
@@ -56,9 +63,9 @@ export function WalkInDialog({
       vip: false,
       notes: notes.trim() || undefined,
     }
-    // Walk-ins are always anonymous on creation (locked decision) — never create
-    // a customer here, even if a name is typed. Linking happens later via the
-    // explicit "Add customer info" action on the seated reservation.
+    // Walk-ins are always anonymous on creation (locked decision). Customer
+    // linking happens via the explicit "Add customer info" action on the
+    // seated reservation — never auto-created from this dialog.
     const input: ReservationInput = {
       customer: null,
       customerId: null,
@@ -84,108 +91,141 @@ export function WalkInDialog({
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent
-        className="sm:max-w-[340px]"
+        className="gap-0 p-0 sm:max-w-[480px]"
         showCloseButton={false}
       >
-        <DialogHeader>
-          <DialogTitle className="text-[13px] uppercase tracking-[0.22em] font-medium text-foreground">
-            Walk-in · Table {tableId}
-          </DialogTitle>
-        </DialogHeader>
+        {/* Header */}
+        <div className="flex items-start gap-2.5 px-6 pt-6 pb-1 sm:px-7 sm:pt-7">
+          <div className="flex-1">
+            <div className="mb-1.5 inline-flex items-center gap-2">
+              <span className="inline-flex size-[22px] items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Zap size={11} strokeWidth={1.8} fill="currentColor" />
+              </span>
+              <span className="text-[10px] font-medium uppercase tracking-[0.28em] text-primary whitespace-nowrap">
+                Fast entry
+              </span>
+            </div>
+            <h2 className="text-[22px] sm:text-[24px] font-normal tracking-[0.02em] leading-[1.1] text-foreground">
+              Walk-in
+            </h2>
+            <p className="mt-1.5 text-[12px] tracking-[0.04em] text-brand-ink-soft">
+              {subtitle}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={saving}
+            aria-label="Close"
+            className={cn(
+              "inline-flex size-8 shrink-0 items-center justify-center rounded-[3px]",
+              "text-brand-ink-soft hover:text-foreground hover:bg-foreground/[0.04]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+              "transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+            )}
+          >
+            <X size={16} strokeWidth={1.4} />
+          </button>
+        </div>
 
-        {/* PAX stepper */}
-        <div className="py-4 flex flex-col items-center gap-2">
-          <span className="text-[10px] uppercase tracking-[0.22em] text-brand-ink-mute mb-1">
-            Guests
-          </span>
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setPax((p) => Math.max(1, p - 1))}
-              aria-label="Decrease guests"
+        {/* Body */}
+        <div className="px-6 pb-3 pt-6 sm:px-7 sm:pt-7">
+          {/* PAX */}
+          <div className="text-center mb-7">
+            <div className="mb-5 text-[10px] font-medium uppercase tracking-[0.28em] text-brand-ink-soft">
+              Party size
+            </div>
+
+            <div className="inline-flex items-center gap-3.5">
+              <StepButton
+                onClick={() => setPax((p) => Math.max(1, p - 1))}
+                disabled={pax <= 1}
+                ariaLabel="Decrease guests"
+              >
+                <Minus size={18} strokeWidth={1.8} />
+              </StepButton>
+              <div className="w-[120px] text-center text-[56px] font-extralight leading-none tracking-[0.02em] text-foreground tabular-nums">
+                {pax}
+              </div>
+              <StepButton
+                onClick={() => setPax((p) => Math.min(20, p + 1))}
+                disabled={pax >= 20}
+                ariaLabel="Increase guests"
+              >
+                <Plus size={18} strokeWidth={1.8} />
+              </StepButton>
+            </div>
+
+            <div className="mt-2.5 text-[11px] uppercase tracking-[0.16em] text-brand-ink-mute">
+              {pax === 1 ? "guest" : "guests"}
+            </div>
+
+            {/* Quick chips */}
+            <div className="mt-4 inline-flex gap-1.5">
+              {QUICK_PAX.map((n) => {
+                const active = pax === n
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPax(n)}
+                    aria-pressed={active}
+                    className={cn(
+                      "h-8 w-9 rounded-[3px] text-[13px] tracking-[0.02em]",
+                      "transition-colors duration-150",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                      active
+                        ? "bg-primary text-primary-foreground border border-primary"
+                        : "bg-transparent text-brand-ink-soft border border-hair hover:border-foreground/30 hover:text-foreground",
+                    )}
+                  >
+                    {n}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Notes (optional) — name is intentionally omitted; walk-ins are
+              anonymous on creation. */}
+          <div>
+            <div className="mb-2 flex items-baseline justify-between">
+              <label
+                htmlFor="wi-notes"
+                className="text-[10px] font-medium uppercase tracking-[0.22em] text-brand-ink-soft"
+              >
+                Notes
+              </label>
+              <span className="text-[10.5px] tracking-[0.04em] text-brand-ink-mute">
+                Optional · can skip
+              </span>
+            </div>
+            <textarea
+              id="wi-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Allergies, preferences…"
               className={cn(
-                "size-10 rounded-full border border-hair-strong",
-                "flex items-center justify-center",
-                "text-brand-ink-soft hover:text-foreground hover:border-foreground/30",
-                "transition-colors duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                "w-full resize-none rounded-[3px] bg-card px-3.5 py-2.5",
+                "text-[13px] font-light tracking-[0.02em] text-foreground",
+                "border border-hair-strong placeholder:text-brand-ink-mute",
+                "focus-visible:border-foreground focus-visible:outline-none",
               )}
-            >
-              <Minus className="size-4" />
-            </button>
-            <span className="w-8 text-center text-[36px] font-light leading-none text-foreground">
-              {pax}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPax((p) => Math.min(20, p + 1))}
-              aria-label="Increase guests"
-              className={cn(
-                "size-10 rounded-full border border-hair-strong",
-                "flex items-center justify-center",
-                "text-brand-ink-soft hover:text-foreground hover:border-foreground/30",
-                "transition-colors duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-              )}
-            >
-              <Plus className="size-4" />
-            </button>
+            />
           </div>
         </div>
 
-        {/* Optional name */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="wi-name"
-            className="text-[10px] uppercase tracking-[0.22em] text-brand-ink-mute"
-          >
-            Name <span className="normal-case tracking-normal">(optional)</span>
-          </label>
-          <input
-            id="wi-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Guest"
-            className={cn(
-              "h-9 w-full rounded-[3px] bg-foreground/[0.03] px-3 text-[12.5px] font-light",
-              "border border-hair text-foreground placeholder:text-brand-ink-mute",
-              "focus-visible:border-foreground focus-visible:outline-none",
-            )}
-          />
-        </div>
-
-        {/* Optional notes */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="wi-notes"
-            className="text-[10px] uppercase tracking-[0.22em] text-brand-ink-mute"
-          >
-            Notes <span className="normal-case tracking-normal">(optional)</span>
-          </label>
-          <textarea
-            id="wi-notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            placeholder="Allergies, preferences…"
-            className={cn(
-              "w-full resize-none rounded-[3px] bg-foreground/[0.03] px-3 py-2 text-[12.5px] font-light",
-              "border border-hair text-foreground placeholder:text-brand-ink-mute",
-              "focus-visible:border-foreground focus-visible:outline-none",
-            )}
-          />
-        </div>
-
-        <DialogFooter>
+        {/* Footer */}
+        <div className="flex gap-2 border-t border-hair bg-muted/40 px-5 py-4 sm:px-6">
           <button
             type="button"
             onClick={handleClose}
             disabled={saving}
             className={cn(
-              "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
-              "border border-hair text-brand-ink-soft",
-              "hover:text-foreground hover:border-foreground/30 transition-colors duration-150",
+              "h-11 rounded-[3px] px-[18px] text-[11px] font-medium uppercase tracking-[0.22em]",
+              "border border-hair-strong text-foreground bg-transparent",
+              "hover:border-foreground/30 transition-colors duration-150",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
               "disabled:cursor-not-allowed disabled:opacity-50",
             )}
@@ -197,17 +237,48 @@ export function WalkInDialog({
             onClick={handleSave}
             disabled={saving}
             className={cn(
-              "h-8 rounded-[3px] px-4 text-[10.5px] font-medium uppercase tracking-[0.18em]",
+              "flex-1 h-11 rounded-[3px] inline-flex items-center justify-center gap-2",
+              "text-[11.5px] font-medium uppercase tracking-[0.22em]",
               "bg-primary text-primary-foreground",
               "hover:bg-brand-red-dark transition-colors duration-150",
+              "shadow-[0_6px_18px_-6px_rgba(200,70,52,0.50)]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
               "disabled:cursor-not-allowed disabled:opacity-60",
             )}
           >
-            {saving ? "Seating…" : "Seat Walk-in"}
+            <Zap size={12} strokeWidth={1.8} fill="currentColor" />
+            {saving ? "Seating…" : "Seat Now"}
           </button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+interface StepButtonProps {
+  onClick: () => void
+  disabled?: boolean
+  ariaLabel: string
+  children: React.ReactNode
+}
+
+function StepButton({ onClick, disabled, ariaLabel, children }: StepButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className={cn(
+        "size-16 rounded-full inline-flex items-center justify-center",
+        "transition-all duration-150",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+        disabled
+          ? "bg-foreground/[0.03] border border-hair text-brand-ink-mute cursor-not-allowed"
+          : "bg-card border border-hair-strong text-foreground hover:border-foreground/30 shadow-[0_1px_2px_rgba(20,25,35,0.06)]",
+      )}
+    >
+      {children}
+    </button>
   )
 }
