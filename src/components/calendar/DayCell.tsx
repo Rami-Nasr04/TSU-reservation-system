@@ -38,16 +38,16 @@ export function DayCell({
   onClick,
 }: DayCellProps) {
   const empty = day === null
-  const isClosed = !empty && day.count === 0
-  const showChips = variant !== "mobile" && !empty && !isClosed
+  const noReservations = !empty && day.count === 0
+  const showChips = variant !== "mobile" && !empty && !noReservations
 
   const maxChips = variant === "tablet" ? 2 : 3
-  const visibleChips = !empty && !isClosed ? day.items.slice(0, maxChips) : []
-  const extra = !empty && !isClosed ? Math.max(0, day.count - maxChips) : 0
+  const visibleChips = !empty && !noReservations ? day.items.slice(0, maxChips) : []
+  const extra = !empty && !noReservations ? Math.max(0, day.count - maxChips) : 0
 
   // Heatmap intensity: 0..15% brand-red alpha, scaled by count/max.
   const intensity =
-    empty || isClosed || max === 0
+    empty || noReservations || max === 0
       ? 0
       : Math.min(0.15, (day.count / max) * 0.15)
 
@@ -96,7 +96,7 @@ export function DayCell({
             {day.day}
           </div>
         )}
-        {!empty && !isClosed &&
+        {!empty && !noReservations &&
           (variant === "mobile" ? (
             <CountDots count={day.count} max={max} />
           ) : (
@@ -112,17 +112,17 @@ export function DayCell({
           ))}
       </div>
 
-      {/* closed label */}
-      {isClosed && (
+      {/* no-reservations label */}
+      {noReservations && (
         <div className="absolute inset-0 flex items-center justify-center px-1">
           <Overline
             size="xs"
             tone="mute"
             className={cn(
-              variant === "mobile" ? "tracking-[0.12em]" : "tracking-[0.3em]",
+              variant === "mobile" ? "tracking-[0.08em]" : "tracking-[0.18em]",
             )}
           >
-            Closed
+            {variant === "mobile" ? "—" : "No reservations"}
           </Overline>
         </div>
       )}

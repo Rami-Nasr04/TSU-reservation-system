@@ -12,6 +12,7 @@ import { useMonth } from "@/hooks/useMonth"
 import { monthLabel, shiftMonth, todayParts } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import type { DayCellVariant } from "@/components/calendar/DayCell"
+import type { MonthFeed } from "@/services/reservationsService"
 
 function useVariant(): DayCellVariant {
   const [w, setW] = React.useState<number>(() =>
@@ -91,8 +92,10 @@ export default function Calendar() {
     </>
   )
 
-  // KPI numbers — hardcoded to handoff values for now; wire to /analytics/week endpoint later.
-  const kpi = { reservations: 142, covers: 410 }
+  // "This week" stats — sum the month feed for days falling in the current
+  // real-world Mon-Sun week. When the viewed month doesn't overlap this week
+  // at all, both values stay null so KpiStrip renders em-dashes.
+  const kpi = React.useMemo(() => weekStats(data), [data])
 
   return (
     <AppShell headerCenter={headerCenter} headerActions={headerActions}>
@@ -121,6 +124,40 @@ export default function Calendar() {
       )}
     </AppShell>
   )
+}
+
+interface WeekStats {
+  reservations: number | null
+  covers: number | null
+}
+
+/**
+ * Sum the month feed for the days in the current real-world Mon-Sun week.
+ * Returns nulls when the viewed month contains zero days from this week
+ * (different month in view, or feed not loaded).
+ */
+function weekStats(feed: MonthFeed | null): WeekStats {
+  if (!feed) return { reservations: null, covers: null }
+  const t = todayParts()
+  const today = new Date(t.year, t.month0, t.day)
+  // Monday of this week. JS getDay(): 0=Sun..6=Sat → shift so Mon=0.
+  const dowMonFirst = (today.getDay() + 6) % 7
+  const monday = new Date(t.year, t.month0, t.day - dowMonFirst)
+  const sunday = new Date(t.year, t.month0, t.day - dowMonFirst + 6)
+
+  let reservations = 0
+  let covers = 0
+  let overlap = 0
+  for (const d of feed.days) {
+    const dt = new Date(feed.year, feed.month0, d.day)
+    if (dt >= monday && dt <= sunday) {
+      overlap += 1
+      reservations += d.count
+      for (const it of d.items) covers += it.pax
+    }
+  }
+  if (overlap === 0) return { reservations: null, covers: null }
+  return { reservations, covers }
 }
 
 type IconButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>

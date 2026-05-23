@@ -29,6 +29,8 @@ import { useDay } from "@/hooks/useDay"
 import {
   dayLabel,
   formatDateISO,
+  isPastDate,
+  isToday,
   monthLinkLabel,
   parseDateISO,
   shiftDateISO,
@@ -44,12 +46,6 @@ import type {
   Reservation,
   ReservationInput,
 } from "@/services/reservationsService"
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const WALK_IN_HINT = "Tap a free table to seat a walk-in"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -133,6 +129,8 @@ export default function DayBoard() {
 
   const date = safeDate(dateParam)
   const parts = parseDateISO(date)!
+  const past = isPastDate(date)
+  const todayView = isToday(date)
   const [reloadNonce, setReloadNonce] = React.useState(0)
   const { data, isLoading, error } = useDay(date, reloadNonce)
 
@@ -157,10 +155,22 @@ export default function DayBoard() {
   function handleTableClick(tableId: string, resv?: Reservation) {
     const isLive = resv && (resv.status === "booked" || resv.status === "seated")
     if (isLive) {
+      // Existing reservations stay editable on any day so staff can clean up
+      // past services (seat/checkout/cancel/no-show).
       openModal({ kind: "reservation", tableId, reservation: resv })
-    } else {
-      openModal({ kind: "walkin", tableId })
+      return
     }
+    // Free table — gate by date.
+    if (past) {
+      toast.info("Past day — view only.")
+      return
+    }
+    if (todayView) {
+      openModal({ kind: "walkin", tableId })
+      return
+    }
+    // Future day → new reservation seeded with this table.
+    openModal({ kind: "reservation", tableId })
   }
 
   function handleReservationClick(resv: Reservation) {
@@ -247,7 +257,9 @@ export default function DayBoard() {
           </button>
         )
       )}
-      <NewReservationButton isMobile={isMobile} onClick={handleNewReservation} />
+      {!past && (
+        <NewReservationButton isMobile={isMobile} onClick={handleNewReservation} />
+      )}
       <ThemeToggle />
     </>
   )
@@ -291,6 +303,7 @@ export default function DayBoard() {
               feed={feed}
               activeShift={activeShift}
               isEmpty={isEmpty}
+              date={date}
               drawerOpen={drawerOpen}
               onOpenDrawer={() => setDrawerOpen(true)}
               onCloseDrawer={() => setDrawerOpen(false)}
@@ -310,10 +323,8 @@ export default function DayBoard() {
               <div className="min-h-0">
                 {isEmpty ? (
                   <EmptyDayState
+                    date={date}
                     onNewReservation={handleNewReservation}
-                    onAddWalkIn={() =>
-                      toast.info(WALK_IN_HINT)
-                    }
                   />
                 ) : (
                   <ListPanel
@@ -379,6 +390,7 @@ interface MobileBodyProps {
   feed: DayFeed
   activeShift: ActiveShift
   isEmpty: boolean
+  date: string
   drawerOpen: boolean
   onOpenDrawer: () => void
   onCloseDrawer: () => void
@@ -391,6 +403,7 @@ function MobileBody({
   feed,
   activeShift,
   isEmpty,
+  date,
   drawerOpen,
   onOpenDrawer,
   onCloseDrawer,
@@ -398,11 +411,6 @@ function MobileBody({
   onReservationClick,
   onNewReservation,
 }: MobileBodyProps) {
-  function handleAddWalkIn() {
-    onCloseDrawer()
-    toast.info(WALK_IN_HINT)
-  }
-
   return (
     <div className="relative flex flex-1 flex-col min-h-0">
       <main className="m-3 flex-1 min-h-0 overflow-auto rounded-[3px] border border-hair bg-card p-3 pb-20">
@@ -424,8 +432,8 @@ function MobileBody({
           <DrawerTitle className="sr-only">Reservations</DrawerTitle>
           {isEmpty ? (
             <EmptyDayState
+              date={date}
               onNewReservation={onNewReservation}
-              onAddWalkIn={handleAddWalkIn}
             />
           ) : (
             <ListPanel

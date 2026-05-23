@@ -42,6 +42,27 @@ export function todayParts(): { year: number; month0: number; day: number } {
   return { year: d.getFullYear(), month0: d.getMonth(), day: d.getDate() }
 }
 
+/** Today as a YYYY-MM-DD string (local time). */
+export function todayISO(): string {
+  const t = todayParts()
+  return formatDateISO(t.year, t.month0, t.day)
+}
+
+/** True when `iso` (YYYY-MM-DD) is strictly before today (local). */
+export function isPastDate(iso: string): boolean {
+  return iso < todayISO()
+}
+
+/** True when `iso` (YYYY-MM-DD) is today (local). */
+export function isToday(iso: string): boolean {
+  return iso === todayISO()
+}
+
+/** True when `iso` (YYYY-MM-DD) is strictly after today (local). */
+export function isFutureDate(iso: string): boolean {
+  return iso > todayISO()
+}
+
 /** Shift a (year, month0) by N months, returning the new pair. */
 export function shiftMonth(
   year: number,

@@ -2,8 +2,9 @@ import { cn } from "@/lib/utils"
 import { Overline } from "@/components/brand"
 
 interface KpiStripProps {
-  reservations: number
-  covers: number
+  /** `null` renders an em-dash placeholder (no data for the current week in this view). */
+  reservations: number | null
+  covers: number | null
   compact?: boolean
   className?: string
 }
@@ -14,6 +15,7 @@ export function KpiStrip({
   compact,
   className,
 }: KpiStripProps) {
+  const fmt = (n: number | null) => (n === null ? "—" : n)
   return (
     <div
       className={cn(
@@ -33,7 +35,7 @@ export function KpiStrip({
             compact ? "text-base" : "text-lg",
           )}
         >
-          {reservations}
+          {fmt(reservations)}
         </span>
         <span className="text-[11px] tracking-[0.06em] text-brand-ink-soft">
           reservations
@@ -47,7 +49,7 @@ export function KpiStrip({
             compact ? "text-base" : "text-lg",
           )}
         >
-          {covers}
+          {fmt(covers)}
         </span>
         <span className="text-[11px] tracking-[0.06em] text-brand-ink-soft">
           covers

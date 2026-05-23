@@ -12,7 +12,7 @@ import { CheckoutDialog } from "@/components/reservations/CheckoutDialog"
 
 import { useDay } from "@/hooks/useDay"
 import { useFloorTables } from "@/contexts/TablesContext"
-import { formatDateISO, parseDateISO, todayParts } from "@/lib/dates"
+import { formatDateISO, isPastDate, isToday, parseDateISO, todayParts } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import {
   createReservation,
@@ -104,8 +104,20 @@ export default function ServiceMode() {
 
   function handleTableClick(tableId: string, resv?: Reservation) {
     const isLive = resv && (resv.status === "booked" || resv.status === "seated")
-    if (isLive) openModal({ kind: "reservation", tableId, reservation: resv })
-    else openModal({ kind: "walkin", tableId })
+    if (isLive) {
+      openModal({ kind: "reservation", tableId, reservation: resv })
+      return
+    }
+    // Free table — gate walk-ins to today, allow new reservation on future days.
+    if (isPastDate(date)) {
+      toast.info("Past day — view only.")
+      return
+    }
+    if (isToday(date)) {
+      openModal({ kind: "walkin", tableId })
+      return
+    }
+    openModal({ kind: "reservation", tableId })
   }
 
   function handleReservationClick(resv: Reservation) {
