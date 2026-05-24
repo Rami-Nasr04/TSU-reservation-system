@@ -152,8 +152,15 @@ export function CheckoutDialog({
   const seatedAt = reservation.time
   const duration = durationSince(seatedAt)
 
+  // Block close while the completion is in flight so we don't get a ghost
+  // toast firing after the dialog is gone.
+  function safeClose() {
+    if (saving) return
+    onClose()
+  }
+
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && onClose()}>
+    <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && safeClose()}>
       <DialogPrimitive.Portal>
         <DialogOverlay className="bg-black/40" />
         <DialogPrimitive.Content
@@ -183,7 +190,7 @@ export function CheckoutDialog({
             guestName={reservation.name}
             tableLabel={tableLabel(reservation.tables)}
             pax={reservation.pax}
-            onClose={onClose}
+            onClose={safeClose}
           />
 
           {/* Seating meta strip */}
@@ -268,7 +275,7 @@ export function CheckoutDialog({
             canSubmit={canSubmit}
             saving={saving}
             onSubmit={handleSubmit}
-            onClose={onClose}
+            onClose={safeClose}
           />
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

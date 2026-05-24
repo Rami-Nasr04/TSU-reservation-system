@@ -301,9 +301,16 @@ export function ReservationForm({
     onCheckout?.()
   }
 
+  // Wrap close so ESC / outside-click / X-button can't dismiss mid-save and
+  // leave a "ghost" toast firing after the modal is gone.
+  function safeClose() {
+    if (saving) return
+    onClose()
+  }
+
   // ---- render -------------------------------------------------------------
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && onClose()}>
+    <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && safeClose()}>
       <DialogPrimitive.Portal>
         <DialogOverlay className="bg-black/40" />
         <DialogPrimitive.Content
@@ -329,7 +336,7 @@ export function ReservationForm({
           <Header
             isEdit={isEdit}
             tables={tables.length > 0 ? tables : initialTableId ? [initialTableId] : []}
-            onClose={onClose}
+            onClose={safeClose}
           />
 
           {/* Scrolling body */}
@@ -421,7 +428,7 @@ export function ReservationForm({
             isEdit={isEdit}
             isTerminal={isTerminal}
             saving={saving}
-            onClose={onClose}
+            onClose={safeClose}
             onSave={handleSave}
             onAskDelete={() => setConfirmDelete(true)}
           />

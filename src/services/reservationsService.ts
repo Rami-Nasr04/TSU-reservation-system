@@ -515,6 +515,18 @@ function reservationBody(
   return body
 }
 
+// The backend maps Postgres 23P01 (exclusion constraint) → 409 CONFLICT with a
+// code-only payload, so we own the user-facing copy here rather than surfacing
+// raw SQL through the toast.
+function reservationMutationMessage(
+  code: string | undefined,
+  fallback: string,
+  rawMessage: string | undefined,
+): string {
+  if (code === "CONFLICT") return "That table is already reserved at this time."
+  return rawMessage ?? fallback
+}
+
 export async function createReservation(input: ReservationInput): Promise<Reservation> {
   const customerId = await resolveCustomerId(input)
   const tables = await resolveTables(input.tables)
@@ -523,7 +535,13 @@ export async function createReservation(input: ReservationInput): Promise<Reserv
     body: JSON.stringify(reservationBody(input, customerId, tables)),
   })
   if (!res.success || !res.data) {
-    throw new Error(res.error?.message ?? "Failed to create reservation")
+    throw new Error(
+      reservationMutationMessage(
+        res.error?.code,
+        "Failed to create reservation",
+        res.error?.message,
+      ),
+    )
   }
   return adaptRow(res.data)
 }
@@ -539,7 +557,13 @@ export async function updateReservation(
     body: JSON.stringify(reservationBody(input, customerId, tables)),
   })
   if (!res.success || !res.data) {
-    throw new Error(res.error?.message ?? "Failed to update reservation")
+    throw new Error(
+      reservationMutationMessage(
+        res.error?.code,
+        "Failed to update reservation",
+        res.error?.message,
+      ),
+    )
   }
   return adaptRow(res.data)
 }
