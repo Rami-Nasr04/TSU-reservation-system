@@ -156,7 +156,7 @@ export default function ServiceMode() {
   }
 
   return (
-    <div data-theme="service" className="flex min-h-dvh flex-col bg-background text-foreground">
+    <div data-theme="service" className="flex min-h-dvh flex-col bg-background text-foreground lg:h-dvh lg:min-h-0 lg:overflow-hidden">
       {/* Header — always visible */}
       <ServiceHeader date={date} feed={feed} />
 
@@ -176,9 +176,9 @@ export default function ServiceMode() {
               "min-h-0 flex-1",
               // Mobile/tablet: vertical stack, page scrolls
               "flex flex-col",
-              // Desktop: fixed two-column split that fills remaining viewport
+              // Desktop: two-column split that fills remaining viewport (flex-1 on
+              // a lg:h-dvh + lg:overflow-hidden parent — no hardcoded header/kpi math).
               "lg:grid lg:grid-cols-[1fr_380px] lg:overflow-hidden",
-              "lg:h-[calc(100dvh-72px-1px-52px)]",
             )}
           >
             {/* Left / top — Floor view */}
