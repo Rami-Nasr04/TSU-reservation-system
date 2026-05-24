@@ -47,19 +47,20 @@ function LiveClock({ feed }: { feed: DayFeed | null }) {
   }
 
   return (
-    <div className="justify-self-end text-right">
+    <div className="col-start-3 justify-self-end text-right min-w-0">
       <div
         className={cn(
-          "text-2xl font-light text-foreground [font-variant-numeric:tabular-nums]",
+          "text-xl sm:text-2xl font-light text-foreground [font-variant-numeric:tabular-nums]",
           "tracking-[-0.01em]",
         )}
       >
         {timeStr}
       </div>
-      <div className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-brand-ink-soft">
+      <div className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-brand-ink-soft truncate">
         {nextResMins !== null ? (
           <>
-            Next reservation in{" "}
+            <span className="hidden sm:inline">Next reservation in </span>
+            <span className="sm:hidden">Next in </span>
             <span className="text-primary">{nextResMins}</span> min
           </>
         ) : (
@@ -96,11 +97,11 @@ export function ServiceHeader({ date, feed }: ServiceHeaderProps) {
     <header
       className={cn(
         "h-[72px] border-b border-hair bg-background",
-        "grid grid-cols-[1fr_auto_1fr] items-center px-6",
+        "grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:px-6",
       )}
     >
       {/* LEFT: brand mark + title + live badge + subline */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
         {/* Kanji badge */}
         <div className="relative shrink-0">
           <div
@@ -121,15 +122,15 @@ export function ServiceHeader({ date, feed }: ServiceHeaderProps) {
         </div>
 
         {/* Title + badge + subline */}
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <span className="text-base tracking-[0.04em] text-foreground">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-sm sm:text-base tracking-[0.04em] text-foreground whitespace-nowrap">
               Service Mode
             </span>
             {/* Live badge */}
             <span
               className={cn(
-                "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5",
+                "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5",
                 "bg-brand-green/10 text-brand-green",
                 "text-[9px] font-medium uppercase tracking-[0.14em]",
               )}
@@ -143,7 +144,7 @@ export function ServiceHeader({ date, feed }: ServiceHeaderProps) {
               Live
             </span>
           </div>
-          <div className="text-[11px] tracking-[0.02em] text-brand-ink-soft">
+          <div className="text-[11px] tracking-[0.02em] text-brand-ink-soft truncate">
             {dayStr} · {shiftLabel} shift
           </div>
         </div>
