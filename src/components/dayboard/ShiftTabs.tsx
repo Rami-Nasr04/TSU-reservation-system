@@ -21,6 +21,7 @@ export function ShiftTabs({
       className={cn(
         "sticky top-14 sm:top-16 z-[9] flex gap-1 sm:gap-1",
         "whitespace-nowrap overflow-x-auto",
+        "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         "border-b border-hair bg-background/90 backdrop-blur-md backdrop-saturate-[1.4]",
         isMobile ? "px-3 py-2" : "px-7 py-2.5",
       )}
