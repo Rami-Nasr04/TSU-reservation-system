@@ -34,40 +34,24 @@ interface CustomerLookupRow {
   visit_count: number
 }
 
-const E164 = /^\+[1-9]\d{1,14}$/
-
-/**
- * P1 stopgap. The backend validates phone as strict E.164 and 400s otherwise.
- * Here we strip common separators and only forward the value if it's already
- * E.164 — anything else degrades to null (customer saved without a phone, lookup
- * just won't match) rather than failing the whole reservation. The canonical
- * phone format (store E.164 vs display-local) is parked to P3 per spec open
- * question #2; replace this with real parsing then.
- */
-export function normalizePhone(raw: string | null | undefined): string | null {
-  if (!raw) return null
-  const cleaned = raw.replace(/[\s\-.()]/g, "")
-  return E164.test(cleaned) ? cleaned : null
-}
-
 function emptyToNull(v: string | null | undefined): string | null {
   const t = v?.trim()
   return t ? t : null
 }
 
 /**
- * Repeat-customer auto-fill by phone. Returns null when there's no match (normal
- * flow, not an error). Flip back to the mock by adding '/customers/lookup' to
- * MOCK_ENDPOINTS.
+ * Repeat-customer auto-fill by phone. Backend accepts free-text phones and
+ * matches on digits-only; we forward the trimmed raw input. Skips the call
+ * until the user has typed at least 6 digits so debounced lookups don't 400.
  */
 export async function lookupCustomer(
   phone: string,
 ): Promise<CustomerLookupResult | null> {
   if (shouldUseMock("/customers/lookup")) return mockLookup(phone)
-  const normalized = normalizePhone(phone)
-  if (!normalized) return null // backend would 400 on a non-E.164 phone
+  const trimmed = phone.trim()
+  if (trimmed.replace(/\D/g, "").length < 6) return null
   const res = await apiFetch<CustomerLookupRow | null>(
-    `/customers/lookup?phone=${encodeURIComponent(normalized)}`,
+    `/customers/lookup?phone=${encodeURIComponent(trimmed)}`,
   )
   if (!res.success) throw new Error(res.error?.message ?? "Lookup failed")
   const row = res.data
@@ -81,17 +65,16 @@ export async function lookupCustomer(
 }
 
 /**
- * Create-or-update a customer. POST /customers is an upsert on phone, so this is
- * idempotent: posting the same phone again updates the existing row. A null phone
- * always inserts a fresh row (anonymous). Empty name/email coerce to null since
- * the backend rejects "" for those fields.
+ * Create-or-update a customer. POST /customers is an upsert on phone (digits-only
+ * match), so this is idempotent: posting the same phone in any format updates the
+ * existing row. A null phone always inserts a fresh row (anonymous).
  */
 export async function upsertCustomer(input: CustomerInput): Promise<Customer> {
   const res = await apiFetch<Customer>("/customers", {
     method: "POST",
     body: JSON.stringify({
       name: emptyToNull(input.name),
-      phone: normalizePhone(input.phone),
+      phone: emptyToNull(input.phone),
       email: emptyToNull(input.email),
       vip: input.vip,
     }),
@@ -253,8 +236,8 @@ export async function getCustomerHistory(
 
 /**
  * Partial update — only the supplied keys are written (dynamic SET on the
- * backend, no default-clobber). Name/email empty strings coerce to null and the
- * phone is normalized to E.164-or-null to match the backend's validation.
+ * backend, no default-clobber). Empty strings coerce to null so the backend can
+ * distinguish "clear this field" (null) from "don't touch it" (key absent).
  */
 export async function patchCustomer(
   id: string,
@@ -263,7 +246,7 @@ export async function patchCustomer(
   const body: CustomerPatch = { ...patch }
   if ("name" in body) body.name = emptyToNull(body.name)
   if ("email" in body) body.email = emptyToNull(body.email)
-  if ("phone" in body) body.phone = normalizePhone(body.phone)
+  if ("phone" in body) body.phone = emptyToNull(body.phone)
   if ("notes" in body) body.notes = emptyToNull(body.notes)
   const res = await apiFetch<CustomerStatsRow>(`/customers/${id}`, {
     method: "PATCH",
