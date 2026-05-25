@@ -53,6 +53,40 @@ export function isPastDate(iso: string): boolean {
   return iso < todayISO()
 }
 
+const SHIFT_CUTOFF_HOUR = 5
+
+/**
+ * The date the restaurant currently considers "today" for operational purposes.
+ * Before 5 AM, the host is still working last night's shift, so this returns
+ * yesterday's calendar date. From 5 AM onward, today's calendar date.
+ */
+export function operationalDate(now: Date = new Date()): string {
+  const ref = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (now.getHours() < SHIFT_CUTOFF_HOUR) {
+    ref.setDate(ref.getDate() - 1)
+  }
+  return formatDateISO(ref.getFullYear(), ref.getMonth(), ref.getDate())
+}
+
+/**
+ * Is `date` past for editability purposes?
+ *   - `date >= operationalDate(now)` → not past (editable)
+ *   - `date < operationalDate(now)` AND `feed` has any seated reservation → not past
+ *   - otherwise → past (view-only)
+ *
+ * `feed` may be omitted (e.g. in Calendar before the day is loaded); in that
+ * case a past date is treated as locked since we have no info to say otherwise.
+ */
+export function isPastDayLocked(
+  date: string,
+  feed?: { reservations: { status: string }[] } | null,
+  now: Date = new Date(),
+): boolean {
+  if (date >= operationalDate(now)) return false
+  if (!feed) return true
+  return feed.reservations.every((r) => r.status !== "seated")
+}
+
 /** True when `iso` (YYYY-MM-DD) is today (local). */
 export function isToday(iso: string): boolean {
   return iso === todayISO()

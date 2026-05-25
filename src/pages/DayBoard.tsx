@@ -29,7 +29,7 @@ import { useDay } from "@/hooks/useDay"
 import {
   dayLabel,
   formatDateISO,
-  isPastDate,
+  isPastDayLocked,
   isToday,
   monthLinkLabel,
   parseDateISO,
@@ -129,7 +129,6 @@ export default function DayBoard() {
 
   const date = safeDate(dateParam)
   const parts = parseDateISO(date)!
-  const past = isPastDate(date)
   const todayView = isToday(date)
   const [reloadNonce, setReloadNonce] = React.useState(0)
   const { data, isLoading, error } = useDay(date, reloadNonce)
@@ -142,6 +141,7 @@ export default function DayBoard() {
 
   const feed = useMergedFeed(data, localReservations)
   const isEmpty = !!feed && feed.reservations.length === 0
+  const past = isPastDayLocked(date, feed)
 
   function goDay(delta: number) {
     navigate(`/day/${shiftDateISO(date, delta)}`)
@@ -324,6 +324,7 @@ export default function DayBoard() {
                 {isEmpty ? (
                   <EmptyDayState
                     date={date}
+                    feed={feed}
                     onNewReservation={handleNewReservation}
                   />
                 ) : (
@@ -433,6 +434,7 @@ function MobileBody({
           {isEmpty ? (
             <EmptyDayState
               date={date}
+              feed={feed}
               onNewReservation={onNewReservation}
             />
           ) : (

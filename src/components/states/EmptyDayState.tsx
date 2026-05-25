@@ -1,16 +1,23 @@
 import { CalendarDays } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { isPastDate } from "@/lib/dates"
+import { isPastDate, isPastDayLocked } from "@/lib/dates"
+import type { DayFeed } from "@/services/reservationsService"
 
 interface EmptyDayStateProps {
   /** YYYY-MM-DD of the day being viewed. Determines whether the CTA is shown. */
   date: string
+  /** Day feed used to keep yesterday editable while a seated row is still active. */
+  feed?: DayFeed | null
   /** Triggered when the user creates a new reservation. Hidden on past days. */
   onNewReservation: () => void
 }
 
-export function EmptyDayState({ date, onNewReservation }: EmptyDayStateProps) {
+export function EmptyDayState({ date, feed, onNewReservation }: EmptyDayStateProps) {
+  // Visual past-day styling stays on the wall-clock date.
+  // CTA gating uses the operational-day rule so yesterday stays editable
+  // while a seated reservation is still active (pre-5 AM shift).
   const past = isPastDate(date)
+  const locked = isPastDayLocked(date, feed)
 
   return (
     <div className="flex h-full w-full items-center justify-center p-8">
@@ -40,7 +47,7 @@ export function EmptyDayState({ date, onNewReservation }: EmptyDayStateProps) {
         <p
           className={cn(
             "text-[12.5px] font-light leading-[1.6] tracking-[0.02em] text-brand-ink-soft",
-            past ? "mb-0" : "mb-6",
+            locked ? "mb-0" : "mb-6",
           )}
         >
           {past
@@ -48,8 +55,8 @@ export function EmptyDayState({ date, onNewReservation }: EmptyDayStateProps) {
             : "No one is booked for this date yet. Create a reservation to get started."}
         </p>
 
-        {/* CTA — hidden on past days */}
-        {!past && (
+        {/* CTA — hidden when the day is locked for editing */}
+        {!locked && (
           <div className="inline-flex gap-2">
             <button
               type="button"

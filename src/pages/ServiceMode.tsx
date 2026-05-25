@@ -12,7 +12,7 @@ import { CheckoutDialog } from "@/components/reservations/CheckoutDialog"
 
 import { useDay } from "@/hooks/useDay"
 import { useFloorTables } from "@/contexts/TablesContext"
-import { formatDateISO, isPastDate, isToday, parseDateISO, todayParts } from "@/lib/dates"
+import { formatDateISO, isPastDayLocked, isToday, parseDateISO, todayParts } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import {
   createReservation,
@@ -109,7 +109,7 @@ export default function ServiceMode() {
       return
     }
     // Free table — gate walk-ins to today, allow new reservation on future days.
-    if (isPastDate(date)) {
+    if (isPastDayLocked(date, feed)) {
       toast.info("Past day — view only.")
       return
     }
