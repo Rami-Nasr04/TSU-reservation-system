@@ -1,15 +1,18 @@
 import { cn } from "@/lib/utils"
 import type { TableSection } from "@/lib/tables"
 
-const ITEMS: { id: TableSection; label: string }[] = [
+export type FloorViewSection = TableSection | "all"
+
+const ITEMS: { id: FloorViewSection; label: string }[] = [
   { id: "bar",     label: "Bar" },
   { id: "indoor",  label: "Indoor" },
   { id: "terrace", label: "Terrace" },
+  { id: "all",     label: "All" },
 ]
 
 interface SectionToggleProps {
-  active: TableSection
-  onChange: (next: TableSection) => void
+  active: FloorViewSection
+  onChange: (next: FloorViewSection) => void
   isMobile?: boolean
 }
 
