@@ -17,10 +17,11 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { reservationTimeSlots } from "@/lib/dates"
+import { isPastDayLocked, reservationTimeSlots } from "@/lib/dates"
 import { bucketShift } from "@/services/reservationsService"
 import { lookupCustomer } from "@/services/customersService"
 import type {
+  DayFeed,
   Reservation,
   ReservationInput,
   ReservationOccasion,
@@ -37,6 +38,8 @@ interface ReservationFormProps {
   open: boolean
   onClose: () => void
   date: string
+  /** Day feed — used to keep yesterday editable while a seated row is still active. */
+  feed?: DayFeed | null
   initialTableId?: string
   reservation?: Reservation
   onSave: (r: Reservation, input: ReservationInput) => Promise<void>
@@ -106,6 +109,7 @@ export function ReservationForm({
   open,
   onClose,
   date,
+  feed,
   initialTableId,
   reservation,
   onSave,
@@ -192,12 +196,20 @@ export function ReservationForm({
   const computedShift = bucketShift(time)
   const status = reservation?.status
 
-  const canCancel = isEdit && (status === "booked" || status === "seated")
-  const canSeat = isEdit && status === "booked"
-  const canNoShow = isEdit && status === "booked"
-  const canCheckout = isEdit && status === "seated"
-  const isTerminal =
-    isEdit && (status === "completed" || status === "cancelled" || status === "noshow")
+  // Past-day-locked overrides every other gate: the whole form is view-only.
+  const isLocked = isPastDayLocked(date, feed)
+
+  // Live transitions on booked/seated reservations.
+  const canCancel = isEdit && !isLocked && (status === "booked" || status === "seated")
+  const canSeat = isEdit && !isLocked && status === "booked"
+  const canNoShow = isEdit && !isLocked && status === "booked"
+  const canCheckout = isEdit && !isLocked && status === "seated"
+
+  // Recovery transitions from terminal statuses (operational-day editable only).
+  const canRebook = isEdit && !isLocked && (status === "cancelled" || status === "noshow")
+  const canMarkSeatedFromTerminal =
+    isEdit && !isLocked && (status === "cancelled" || status === "noshow")
+  const canReopen = isEdit && !isLocked && status === "completed"
 
   // ---- handlers -----------------------------------------------------------
   function buildReservation(statusOverride?: ReservationStatus): Reservation {
@@ -300,6 +312,18 @@ export function ReservationForm({
   function handleCheckoutClick() {
     onCheckout?.()
   }
+  function handleRebook() {
+    if (!reservation) return
+    void submit("booked", false)
+  }
+  function handleMarkSeatedFromTerminal() {
+    if (!reservation) return
+    void submit("seated", false)
+  }
+  function handleReopen() {
+    if (!reservation) return
+    void submit("seated", false)
+  }
 
   // Wrap close so ESC / outside-click / X-button can't dismiss mid-save and
   // leave a "ghost" toast firing after the modal is gone.
@@ -342,14 +366,26 @@ export function ReservationForm({
           {/* Scrolling body */}
           <div className="min-h-0 flex-1 overflow-y-auto bg-brand-paper-warm px-[22px] py-5 sm:px-7 sm:py-6">
             {isEdit && status && (
-              <StatusStrip
-                status={status}
-                saving={saving}
-                onSeat={canSeat ? handleSeat : undefined}
-                onCheckout={canCheckout ? handleCheckoutClick : undefined}
-                onNoShow={canNoShow ? handleNoShow : undefined}
-                onCancel={canCancel ? handleCancelReservation : undefined}
-              />
+              <>
+                <StatusStrip
+                  status={status}
+                  saving={saving}
+                  onSeat={canSeat ? handleSeat : undefined}
+                  onCheckout={canCheckout ? handleCheckoutClick : undefined}
+                  onNoShow={canNoShow ? handleNoShow : undefined}
+                  onCancel={canCancel ? handleCancelReservation : undefined}
+                  onRebook={canRebook ? handleRebook : undefined}
+                  onMarkSeatedFromTerminal={
+                    canMarkSeatedFromTerminal ? handleMarkSeatedFromTerminal : undefined
+                  }
+                  onReopen={canReopen ? handleReopen : undefined}
+                />
+                {canReopen && (
+                  <p className="-mt-3 mb-5 text-[10.5px] tracking-[0.04em] text-brand-ink-soft">
+                    Reverts to seated. Use to edit totals.
+                  </p>
+                )}
+              </>
             )}
 
             <div className="flex flex-col gap-[18px]">
@@ -361,14 +397,14 @@ export function ReservationForm({
                   onChange={setTime}
                   slots={slots}
                   shift={shiftLabel(computedShift)}
-                  disabled={isTerminal}
+                  disabled={isLocked}
                 />
               </div>
 
               {/* PAX + VIP row */}
               <div className="flex flex-wrap items-end gap-x-7 gap-y-4">
-                <PaxStepper value={pax} onChange={setPax} disabled={isTerminal} />
-                <VipToggle value={vip} onChange={setVip} disabled={isTerminal} />
+                <PaxStepper value={pax} onChange={setPax} disabled={isLocked} />
+                <VipToggle value={vip} onChange={setVip} disabled={isLocked} />
               </div>
 
               {/* Customer */}
@@ -386,7 +422,7 @@ export function ReservationForm({
                 nameRef={nameRef}
                 suggestion={!isEdit ? lookupHit : null}
                 onPickSuggestion={() => setLookupHit(null)}
-                disabled={isTerminal}
+                disabled={isLocked}
               />
 
               {/* Table */}
@@ -397,7 +433,7 @@ export function ReservationForm({
                   if (tableInvalid && v) setTableInvalid(false)
                 }}
                 invalid={tableInvalid}
-                disabled={isTerminal}
+                disabled={isLocked}
               />
 
               {/* Merge (only if primary is mergeable) */}
@@ -407,7 +443,7 @@ export function ReservationForm({
                   selected={tables}
                   onChange={setTables}
                   siblings={mergeable}
-                  disabled={isTerminal}
+                  disabled={isLocked}
                 />
               )}
 
@@ -415,18 +451,18 @@ export function ReservationForm({
               <OccasionSegmented
                 value={occasion}
                 onChange={setOccasion}
-                disabled={isTerminal}
+                disabled={isLocked}
               />
 
               {/* Notes */}
-              <NotesField value={notes} onChange={setNotes} disabled={isTerminal} />
+              <NotesField value={notes} onChange={setNotes} disabled={isLocked} />
             </div>
           </div>
 
           {/* Footer */}
           <Footer
             isEdit={isEdit}
-            isTerminal={isTerminal}
+            isLocked={isLocked}
             saving={saving}
             onClose={safeClose}
             onSave={handleSave}
@@ -495,6 +531,9 @@ interface StatusStripProps {
   onCheckout?: () => void
   onNoShow?: () => void
   onCancel?: () => void
+  onRebook?: () => void
+  onMarkSeatedFromTerminal?: () => void
+  onReopen?: () => void
 }
 
 const STATUS_META: Record<
@@ -538,9 +577,23 @@ const STATUS_META: Record<
   },
 }
 
-function StatusStrip({ status, saving, onSeat, onCheckout, onNoShow, onCancel }: StatusStripProps) {
+function StatusStrip({
+  status,
+  saving,
+  onSeat,
+  onCheckout,
+  onNoShow,
+  onCancel,
+  onRebook,
+  onMarkSeatedFromTerminal,
+  onReopen,
+}: StatusStripProps) {
   const meta = STATUS_META[status]
   const actions: Array<{ label: string; onClick: () => void; primary?: boolean }> = []
+  if (onReopen) actions.push({ label: "Re-open", onClick: onReopen, primary: true })
+  if (onRebook) actions.push({ label: "Re-book", onClick: onRebook, primary: true })
+  if (onMarkSeatedFromTerminal)
+    actions.push({ label: "Mark Seated", onClick: onMarkSeatedFromTerminal })
   if (onSeat) actions.push({ label: "Mark Seated", onClick: onSeat, primary: true })
   if (onCheckout) actions.push({ label: "Check Out", onClick: onCheckout, primary: true })
   if (onNoShow) actions.push({ label: "Mark No-show", onClick: onNoShow })
@@ -1314,14 +1367,14 @@ function NotesField({
 
 function Footer({
   isEdit,
-  isTerminal,
+  isLocked,
   saving,
   onClose,
   onSave,
   onAskDelete,
 }: {
   isEdit: boolean
-  isTerminal: boolean
+  isLocked: boolean
   saving: boolean
   onClose: () => void
   onSave: () => void
@@ -1331,9 +1384,9 @@ function Footer({
     <div className="flex shrink-0 items-center justify-between gap-2 border-t border-hair bg-card px-[18px] py-3 sm:px-6 sm:py-3.5">
       <div className="inline-flex gap-2">
         <button type="button" onClick={onClose} disabled={saving} className={cn(btnGhost, "disabled:cursor-not-allowed disabled:opacity-50")}>
-          {isTerminal ? "Close" : "Cancel"}
+          {isLocked ? "Close" : "Cancel"}
         </button>
-        {isEdit && !isTerminal && (
+        {isEdit && !isLocked && (
           <button
             type="button"
             onClick={onAskDelete}
@@ -1350,7 +1403,7 @@ function Footer({
           </button>
         )}
       </div>
-      {!isTerminal && (
+      {!isLocked && (
         <button
           type="button"
           onClick={onSave}

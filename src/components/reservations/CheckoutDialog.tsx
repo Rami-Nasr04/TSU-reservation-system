@@ -4,13 +4,15 @@ import {
   AlertTriangle,
   Check,
   Lock,
+  Pencil,
   Receipt,
   X,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { isPastDayLocked } from "@/lib/dates"
 import { getTable } from "@/lib/tables"
-import type { Reservation, ReservationInput } from "@/services/reservationsService"
+import type { DayFeed, Reservation, ReservationInput } from "@/services/reservationsService"
 import { DialogOverlay, DialogTitle } from "@/components/ui/dialog"
 
 // ---------------------------------------------------------------------------
@@ -21,6 +23,8 @@ interface CheckoutDialogProps {
   open: boolean
   onClose: () => void
   date: string
+  /** Day feed — used to keep yesterday editable while a seated row is still active. */
+  feed?: DayFeed | null
   reservation: Reservation
   onSave: (r: Reservation, input: ReservationInput) => Promise<void>
 }
@@ -79,10 +83,15 @@ export function CheckoutDialog({
   open,
   onClose,
   date,
+  feed,
   reservation,
   onSave,
 }: CheckoutDialogProps) {
-  const locked = reservation.status === "completed"
+  const isCompleted = reservation.status === "completed"
+  // Past-day-lock disables editing entirely; on the operational-today the
+  // completed state remains editable so the host can fix bill/paid amounts.
+  const isLocked = isPastDayLocked(date, feed)
+  const isUpdateMode = isCompleted && !isLocked
 
   // Use existing reservation values if the dialog is opened on a completed reservation.
   const [total, setTotal] = React.useState<string>(
@@ -98,10 +107,10 @@ export function CheckoutDialog({
   const totalRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
-    if (!open || locked) return
+    if (!open || isLocked) return
     const t = setTimeout(() => totalRef.current?.focus(), 50)
     return () => clearTimeout(t)
-  }, [open, locked])
+  }, [open, isLocked])
 
   const totalN = parseFloat(total) || 0
   const paidN = parseFloat(paid) || 0
@@ -110,10 +119,17 @@ export function CheckoutDialog({
   const tipPct = hasBoth && totalN > 0 ? (tip! / totalN) * 100 : null
   const underpaid = tip !== null && tip < 0
   const exact = tip !== null && Math.abs(tip) < 0.005
-  const canSubmit = hasBoth && !underpaid
+
+  // In update mode (already-completed), the save button must require *some*
+  // change so a no-op tap doesn't fire a useless PATCH.
+  const originalTotal = reservation.totalBill ?? 0
+  const originalPaid = reservation.amountPaid ?? 0
+  const changed =
+    totalN !== originalTotal || paidN !== originalPaid || notes.trim() !== ""
+  const canSubmit = hasBoth && !underpaid && (!isUpdateMode || changed)
 
   async function handleSubmit() {
-    if (!canSubmit || locked || saving) return
+    if (!canSubmit || isLocked || saving) return
     const mergedNotes = notes.trim()
       ? reservation.notes
         ? `${reservation.notes}\n— Checkout: ${notes.trim()}`
@@ -186,7 +202,7 @@ export function CheckoutDialog({
 
           {/* Header */}
           <Header
-            locked={locked}
+            isCompleted={isCompleted}
             guestName={reservation.name}
             tableLabel={tableLabel(reservation.tables)}
             pax={reservation.pax}
@@ -220,7 +236,7 @@ export function CheckoutDialog({
                 focused={focusField === "total"}
                 onFocus={() => setFocusField("total")}
                 onBlur={() => setFocusField(null)}
-                disabled={locked}
+                disabled={isLocked}
               />
               <CurrencyInput
                 label="Amount paid"
@@ -229,7 +245,7 @@ export function CheckoutDialog({
                 focused={focusField === "paid"}
                 onFocus={() => setFocusField("paid")}
                 onBlur={() => setFocusField(null)}
-                disabled={locked}
+                disabled={isLocked}
               />
             </div>
 
@@ -255,15 +271,19 @@ export function CheckoutDialog({
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. shared dessert · ran late · 2 bottles wine"
+                placeholder={
+                  isUpdateMode
+                    ? "Append to the existing record"
+                    : "e.g. shared dessert · ran late · 2 bottles wine"
+                }
                 rows={2}
-                disabled={locked}
+                disabled={isLocked}
                 className={cn(
                   "w-full resize-none rounded-[3px] border border-hair-strong px-3.5 py-3",
                   "text-[13px] font-light leading-relaxed tracking-[0.01em] text-foreground",
                   "placeholder:text-brand-ink-mute focus-visible:border-foreground focus-visible:outline-none",
                   "focus-visible:ring-[3px] focus-visible:ring-foreground/[0.06] transition-colors",
-                  locked ? "bg-foreground/[0.025]" : "bg-card",
+                  isLocked ? "bg-foreground/[0.025]" : "bg-card",
                 )}
               />
             </div>
@@ -271,7 +291,8 @@ export function CheckoutDialog({
 
           {/* Footer */}
           <Footer
-            locked={locked}
+            isLocked={isLocked}
+            isUpdateMode={isUpdateMode}
             canSubmit={canSubmit}
             saving={saving}
             onSubmit={handleSubmit}
@@ -293,13 +314,13 @@ function occasionLabel(o: Reservation["occasion"]): string {
 // ---------------------------------------------------------------------------
 
 function Header({
-  locked,
+  isCompleted,
   guestName,
   tableLabel,
   pax,
   onClose,
 }: {
-  locked: boolean
+  isCompleted: boolean
   guestName: string
   tableLabel: string
   pax: number
@@ -312,10 +333,10 @@ function Header({
           <span
             className={cn(
               "inline-flex size-[22px] items-center justify-center rounded-full",
-              locked ? "bg-foreground/[0.06]" : "bg-primary/10",
+              isCompleted ? "bg-foreground/[0.06]" : "bg-primary/10",
             )}
           >
-            {locked ? (
+            {isCompleted ? (
               <Lock className="size-3 text-brand-ink-soft" strokeWidth={1.4} />
             ) : (
               <Receipt className="size-3 text-primary" strokeWidth={1.4} />
@@ -324,10 +345,10 @@ function Header({
           <span
             className={cn(
               "text-[10px] font-medium tracking-[0.28em] uppercase whitespace-nowrap",
-              locked ? "text-brand-ink-soft" : "text-primary",
+              isCompleted ? "text-brand-ink-soft" : "text-primary",
             )}
           >
-            {locked ? "Completed" : "Closing out"}
+            {isCompleted ? "Completed" : "Closing out"}
           </span>
         </div>
         <div className="text-[22px] font-normal leading-tight tracking-[0.02em] text-foreground sm:text-[24px]">
@@ -538,19 +559,21 @@ function TipRow({
 // ---------------------------------------------------------------------------
 
 function Footer({
-  locked,
+  isLocked,
+  isUpdateMode,
   canSubmit,
   saving,
   onSubmit,
   onClose,
 }: {
-  locked: boolean
+  isLocked: boolean
+  isUpdateMode: boolean
   canSubmit: boolean
   saving: boolean
   onSubmit: () => void
   onClose: () => void
 }) {
-  if (locked) {
+  if (isLocked) {
     return (
       <div className="flex shrink-0 items-center gap-2.5 border-t border-hair bg-card px-[18px] py-3.5 sm:px-6 sm:py-4">
         <div className="inline-flex flex-1 items-center gap-2 text-brand-ink-soft">
@@ -601,8 +624,18 @@ function Footer({
             : "cursor-not-allowed bg-primary/35 text-primary-foreground",
         )}
       >
-        <Check className="size-[13px]" strokeWidth={1.6} />
-        {saving ? "Completing…" : "Complete Reservation"}
+        {isUpdateMode ? (
+          <Pencil className="size-[13px]" strokeWidth={1.6} />
+        ) : (
+          <Check className="size-[13px]" strokeWidth={1.6} />
+        )}
+        {saving
+          ? isUpdateMode
+            ? "Updating…"
+            : "Completing…"
+          : isUpdateMode
+            ? "Update totals"
+            : "Complete Reservation"}
       </button>
     </div>
   )

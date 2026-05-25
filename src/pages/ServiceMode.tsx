@@ -233,6 +233,7 @@ export default function ServiceMode() {
           open
           onClose={closeModal}
           date={date}
+          feed={feed}
           initialTableId={modal.tableId}
           reservation={modal.reservation}
           onSave={handleSave}
@@ -245,6 +246,7 @@ export default function ServiceMode() {
           open
           onClose={closeModal}
           date={date}
+          feed={feed}
           reservation={modal.reservation}
           onSave={handleSave}
         />

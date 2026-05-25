@@ -363,6 +363,7 @@ export default function DayBoard() {
           open
           onClose={closeModal}
           date={date}
+          feed={feed}
           initialTableId={modal.tableId}
           reservation={modal.reservation}
           onSave={handleSave}
@@ -375,6 +376,7 @@ export default function DayBoard() {
           open
           onClose={closeModal}
           date={date}
+          feed={feed}
           reservation={modal.reservation}
           onSave={handleSave}
         />
