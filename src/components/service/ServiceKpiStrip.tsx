@@ -86,10 +86,10 @@ export function ServiceKpiStrip({ feed, totalTables }: ServiceKpiStripProps) {
       avgTurnSub = "seated so far"
     }
 
-    // 5. Empty tables
+    // 5. Empty tables — booked counts as occupied (table is reserved even if not yet seated)
     const occupiedSet = new Set<string>()
     for (const r of feed.reservations) {
-      if (r.status === "seated") {
+      if (r.status === "seated" || r.status === "booked") {
         for (const t of r.tables) occupiedSet.add(t)
       }
     }
