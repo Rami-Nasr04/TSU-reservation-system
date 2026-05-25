@@ -126,8 +126,8 @@ export function ReservationForm({
   }, [reservation, initialTableId])
 
   const [name, setName] = React.useState<string>(reservation?.name ?? "")
-  const [phone, setPhone] = React.useState<string>("")
-  const [email, setEmail] = React.useState<string>("")
+  const [phone, setPhone] = React.useState<string>(reservation?.customerPhone ?? "")
+  const [email, setEmail] = React.useState<string>(reservation?.customerEmail ?? "")
   const [vip, setVip] = React.useState<boolean>(reservation?.vip ?? false)
   const [time, setTime] = React.useState<string>(reservation?.time ?? DEFAULT_TIME)
   const [pax, setPax] = React.useState<number>(reservation?.pax ?? 2)

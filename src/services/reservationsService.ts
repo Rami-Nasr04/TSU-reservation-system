@@ -172,6 +172,10 @@ export interface Reservation {
   vip: boolean
   /** Customer FK — surfaced so the edit modal can patch the right customer. */
   customerId?: string | null
+  /** Linked customer's phone (free-text) — surfaced for the edit modal prefill. */
+  customerPhone?: string | null
+  /** Linked customer's email — surfaced for the edit modal prefill. */
+  customerEmail?: string | null
   occasion?: ReservationOccasion
   notes?: string
   totalBill?: number
@@ -190,6 +194,8 @@ export interface ReservationRow {
   id: string
   customer_id: string | null
   customer_name: string | null
+  customer_phone: string | null
+  customer_email: string | null
   vip: boolean | null
   date: string
   start_time: string
@@ -317,6 +323,8 @@ function adaptRow(row: ReservationRow): Reservation {
     isWalkIn: row.is_walk_in,
     vip: row.vip ?? false,
     customerId: row.customer_id,
+    customerPhone: row.customer_phone,
+    customerEmail: row.customer_email,
     occasion: row.occasion ?? undefined,
     notes: row.notes ?? undefined,
     totalBill: row.total_bill ?? undefined,
