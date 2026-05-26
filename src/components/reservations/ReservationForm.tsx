@@ -5,7 +5,6 @@ import {
   Check,
   ChevronDown,
   Clock,
-  GitMerge,
   Mail,
   Minus,
   Phone,
@@ -29,6 +28,7 @@ import type {
 } from "@/services/reservationsService"
 import { useFloorTables, type FloorTable } from "@/contexts/TablesContext"
 import { DialogOverlay, DialogTitle } from "@/components/ui/dialog"
+import { MergeField } from "./MergeField"
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -1154,127 +1154,6 @@ function TableGroup({
           </button>
         ))
       )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Merge field (button + chips + popover)
-// ---------------------------------------------------------------------------
-
-function MergeField({
-  primaryTableId,
-  selected,
-  onChange,
-  siblings,
-  disabled,
-}: {
-  primaryTableId: string
-  selected: string[]
-  onChange: (tables: string[]) => void
-  siblings: string[]
-  disabled?: boolean
-}) {
-  const [open, setOpen] = React.useState(false)
-  const { getTable } = useFloorTables()
-
-  const mergedSibs = selected.filter((t) => t !== primaryTableId)
-
-  function toggle(id: string) {
-    const base = selected.includes(primaryTableId) ? selected : [primaryTableId, ...selected]
-    onChange(
-      base.includes(id) ? base.filter((t) => t !== id) : [...base, id],
-    )
-  }
-
-  return (
-    <div>
-      <span className={LABEL}>Merge tables</span>
-      <div className="mt-[7px] flex flex-wrap items-center gap-2.5">
-        <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-          <PopoverPrimitive.Trigger asChild>
-            <button
-              type="button"
-              disabled={disabled}
-              className={cn(
-                "inline-flex h-9 items-center gap-2 rounded-[3px] border border-dashed border-hair-strong bg-card px-3.5",
-                "text-[11px] font-medium tracking-[0.18em] uppercase text-foreground transition-colors",
-                "hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-foreground/[0.06]",
-                disabled && "cursor-not-allowed opacity-60",
-              )}
-            >
-              <GitMerge className="size-[13px]" strokeWidth={1.4} />
-              {mergedSibs.length > 0 ? `Merge: #${mergedSibs.join(", #")}` : "Add merge"}
-            </button>
-          </PopoverPrimitive.Trigger>
-          <PopoverPrimitive.Portal>
-            <PopoverPrimitive.Content
-              sideOffset={6}
-              align="start"
-              className={cn(
-                "z-[60] w-[260px] rounded-[3px] border border-hair-strong bg-popover p-2",
-                "shadow-[0_12px_32px_-8px_rgba(0,0,0,0.22)]",
-                "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
-              )}
-            >
-              <div className="mb-1 border-b border-hair px-2 pt-1.5 pb-2 text-[10px] font-medium tracking-[0.22em] uppercase text-brand-ink-soft">
-                Mergeable siblings
-              </div>
-              {siblings.map((sid) => {
-                const def = getTable(sid)
-                const isOn = selected.includes(sid)
-                return (
-                  <button
-                    key={sid}
-                    type="button"
-                    onClick={() => toggle(sid)}
-                    className={cn(
-                      "flex w-full items-center gap-2.5 rounded-[2px] px-2 py-2.5 text-left transition-colors",
-                      isOn ? "bg-primary/[0.06]" : "hover:bg-foreground/[0.04]",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "inline-flex size-4 items-center justify-center rounded-[2px] border",
-                        isOn ? "border-primary bg-primary" : "border-hair-strong bg-card",
-                      )}
-                    >
-                      {isOn && <Check className="size-2.5 text-primary-foreground" strokeWidth={2} />}
-                    </span>
-                    <span className="flex-1 text-[13px] font-light tracking-[0.02em] text-foreground">
-                      Table #{sid}
-                    </span>
-                    <span className="text-[11px] tracking-[0.04em] text-brand-ink-soft">
-                      seats {def?.capacity ?? 0}
-                    </span>
-                  </button>
-                )
-              })}
-            </PopoverPrimitive.Content>
-          </PopoverPrimitive.Portal>
-        </PopoverPrimitive.Root>
-
-        {mergedSibs.length > 0 && (
-          <div className="inline-flex flex-wrap gap-1">
-            {mergedSibs.map((s) => (
-              <span
-                key={s}
-                className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-medium tracking-[0.04em] text-primary"
-              >
-                #{s}
-                <button
-                  type="button"
-                  onClick={() => toggle(s)}
-                  aria-label={`Remove table ${s} from merge`}
-                  className="inline-flex"
-                >
-                  <X className="size-2.5" strokeWidth={1.6} />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   )
 }

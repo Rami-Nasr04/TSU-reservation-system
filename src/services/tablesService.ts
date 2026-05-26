@@ -9,6 +9,7 @@ interface TableRow {
   capacity: number
   section: TableSection
   mergeable_group_id: number | null
+  mergeable_with: number[]
   display_order: number
   active: boolean
 }
@@ -20,6 +21,8 @@ export interface Table {
   capacity: number
   section: TableSection
   mergeableGroupId: number | null
+  /** Explicit per-table whitelist of partner ids the host can merge with. */
+  mergeableWith: number[]
   displayOrder: number
   active: boolean
 }
@@ -28,14 +31,17 @@ export interface CreateTableInput {
   label: string
   capacity: number
   section: TableSection
-  mergeable_group_id: number | null
   display_order: number
+  /** Optional partner ids the new table should ship with. Same-section only. */
+  mergeable_with?: number[]
 }
 
 export interface TablePatch {
   capacity?: number
   active?: boolean
   display_order?: number
+  /** Full intended set of partner ids — backend writes symmetrically. Send [] to clear. */
+  mergeable_with?: number[]
 }
 
 function adaptTable(row: TableRow): Table {
@@ -45,6 +51,7 @@ function adaptTable(row: TableRow): Table {
     capacity: row.capacity,
     section: row.section,
     mergeableGroupId: row.mergeable_group_id,
+    mergeableWith: row.mergeable_with ?? [],
     displayOrder: row.display_order,
     active: row.active,
   }
@@ -84,8 +91,19 @@ export async function patchTable(id: number, patch: TablePatch): Promise<Table> 
   return adaptTable(res.data)
 }
 
-/** Hard-delete. 409 if any reservation still references the table (FK). */
+/**
+ * Hard-delete. 409 if any reservation still references the table (FK).
+ *
+ * `mergeable_with` is symmetric but the backend does NOT auto-cleanup partner
+ * arrays on delete — so first PATCH partners to [] to strip this id from every
+ * sibling, then DELETE the row.
+ */
 export async function deleteTable(id: number): Promise<void> {
+  await patchTable(id, { mergeable_with: [] }).catch(() => {
+    // Non-fatal: partners may already be empty, or the PATCH may race. The
+    // DELETE is the authoritative step — if cleanup fails, orphan ids in
+    // partners' arrays will resolve to nothing client-side (we filter unknowns).
+  })
   const res = await apiFetch<{ deleted: boolean }>(`/tables/${id}`, {
     method: "DELETE",
   })

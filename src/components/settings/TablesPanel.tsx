@@ -1,5 +1,5 @@
 import * as React from "react"
-import { ChevronDown, ChevronRight, Link2, MoreVertical, Plus } from "lucide-react"
+import { ChevronDown, ChevronRight, Link2, MoreVertical, Pencil, Plus } from "lucide-react"
 import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
@@ -14,6 +14,7 @@ import type { TableSection } from "@/lib/tables"
 import { Toggle } from "./Toggle"
 import { CapacityStepper } from "./CapacityStepper"
 import { AddTableModal } from "./AddTableModal"
+import { EditTableModal } from "./EditTableModal"
 
 interface TablesPanelProps {
   tables: Table[]
@@ -70,6 +71,7 @@ export function TablesPanel({ tables, isLoading, error, refetch }: TablesPanelPr
             label={s.label}
             note={`${rows.length} ${rows.length === 1 ? "seat" : "seats"} · ${s.note}`}
             rows={rows}
+            allTables={tables}
             isOpen={open[s.id]}
             onToggle={() => setOpen((o) => ({ ...o, [s.id]: !o[s.id] }))}
             onChanged={refetch}
@@ -85,6 +87,7 @@ interface SectionPanelProps {
   label: string
   note: string
   rows: Table[]
+  allTables: Table[]
   isOpen: boolean
   onToggle: () => void
   onChanged: () => void
@@ -95,6 +98,7 @@ function SectionPanel({
   label,
   note,
   rows,
+  allTables,
   isOpen,
   onToggle,
   onChanged,
@@ -134,7 +138,12 @@ function SectionPanel({
       {isOpen && (
         <div className="border-t border-hair">
           {rows.map((t) => (
-            <TableRow key={t.id} table={t} onChanged={onChanged} />
+            <TableRow
+              key={t.id}
+              table={t}
+              allTables={allTables}
+              onChanged={onChanged}
+            />
           ))}
           <button
             type="button"
@@ -155,6 +164,7 @@ function SectionPanel({
           open
           defaultSection={section}
           nextDisplayOrder={nextOrder}
+          allTables={allTables}
           onClose={() => setAdding(false)}
           onCreated={onChanged}
         />
@@ -165,13 +175,15 @@ function SectionPanel({
 
 interface TableRowProps {
   table: Table
+  allTables: Table[]
   onChanged: () => void
 }
 
-function TableRow({ table, onChanged }: TableRowProps) {
+function TableRow({ table, allTables, onChanged }: TableRowProps) {
   const [capacity, setCapacity] = React.useState(table.capacity)
   const [active, setActive] = React.useState(table.active)
   const [busy, setBusy] = React.useState(false)
+  const [editing, setEditing] = React.useState(false)
   const capTimer = React.useRef<number | undefined>(undefined)
 
   React.useEffect(() => {
@@ -216,6 +228,8 @@ function TableRow({ table, onChanged }: TableRowProps) {
     }
   }
 
+  const partnerCount = table.mergeableWith.length
+
   return (
     <div
       className={cn(
@@ -227,10 +241,10 @@ function TableRow({ table, onChanged }: TableRowProps) {
         {table.label}
       </span>
       <span className="min-w-0 flex-1 text-[11px] tracking-[0.04em] text-brand-ink-soft">
-        {table.mergeableGroupId != null ? (
+        {partnerCount > 0 ? (
           <span className="inline-flex items-center gap-1.5">
             <Link2 className="size-3 text-brand-ink-mute" />
-            Mergeable · group {table.mergeableGroupId}
+            Mergeable · {partnerCount} {partnerCount === 1 ? "partner" : "partners"}
           </span>
         ) : (
           <span className="text-brand-ink-mute">—</span>
@@ -243,6 +257,14 @@ function TableRow({ table, onChanged }: TableRowProps) {
         disabled={busy}
         ariaLabel={`Table ${table.label} active`}
       />
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        aria-label={`Edit table ${table.label}`}
+        className="inline-flex size-7 items-center justify-center rounded-[3px] text-brand-ink-soft outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"
+      >
+        <Pencil className="size-3.5" strokeWidth={1.5} />
+      </button>
       <DropdownMenu>
         <DropdownMenuTrigger
           className="inline-flex size-7 items-center justify-center rounded-[3px] text-brand-ink-soft outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"
@@ -259,6 +281,16 @@ function TableRow({ table, onChanged }: TableRowProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {editing && (
+        <EditTableModal
+          open
+          table={table}
+          allTables={allTables}
+          onClose={() => setEditing(false)}
+          onSaved={onChanged}
+        />
+      )}
     </div>
   )
 }

@@ -4,9 +4,14 @@ import { Minus, Plus, X, Zap } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { nowRounded15 } from "@/lib/dates"
 import { bucketShift } from "@/services/reservationsService"
-import type { Reservation, ReservationInput } from "@/services/reservationsService"
+import type {
+  DayFeed,
+  Reservation,
+  ReservationInput,
+} from "@/services/reservationsService"
 import { useFloorTables } from "@/contexts/TablesContext"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { MergeField } from "./MergeField"
 
 const QUICK_PAX = [1, 2, 3, 4, 5, 6] as const
 
@@ -21,6 +26,8 @@ interface WalkInDialogProps {
   onClose: () => void
   date: string
   tableId: string
+  /** Day feed — used to flag currently-seated siblings as Occupied in merge picker. */
+  feed?: DayFeed | null
   onSave: (r: Reservation, input: ReservationInput) => Promise<void>
 }
 
@@ -29,9 +36,10 @@ export function WalkInDialog({
   onClose,
   date,
   tableId,
+  feed,
   onSave,
 }: WalkInDialogProps) {
-  const { getTable } = useFloorTables()
+  const { getTable, getMergeableSiblings } = useFloorTables()
   const table = getTable(tableId)
   const subtitle = table
     ? `${SECTION_LABEL[table.section] ?? table.section} · Table ${table.id} (seats ${table.capacity})`
@@ -39,12 +47,33 @@ export function WalkInDialog({
 
   const [pax, setPax] = React.useState(2)
   const [notes, setNotes] = React.useState("")
+  const [tables, setTables] = React.useState<string[]>([tableId])
   const [saving, setSaving] = React.useState(false)
+
+  const siblings = React.useMemo(
+    () => getMergeableSiblings(tableId),
+    [getMergeableSiblings, tableId],
+  )
+
+  // Mark siblings currently held by a seated reservation as Occupied —
+  // disabled in the picker so a walk-in can't merge onto an active table.
+  const disabledSiblings = React.useMemo(() => {
+    if (!feed) return {}
+    const occupied: Record<string, string> = {}
+    for (const r of feed.reservations) {
+      if (r.status !== "seated") continue
+      for (const t of r.tables) {
+        if (siblings.includes(t)) occupied[t] = "Occupied"
+      }
+    }
+    return occupied
+  }, [feed, siblings])
 
   function handleClose() {
     if (saving) return
     setPax(2)
     setNotes("")
+    setTables([tableId])
     onClose()
   }
 
@@ -56,7 +85,7 @@ export function WalkInDialog({
       time,
       name: "Walk-in",
       pax,
-      tables: [tableId],
+      tables,
       status: "seated",
       shift: bucketShift(time),
       isWalkIn: true,
@@ -78,7 +107,7 @@ export function WalkInDialog({
       notes: notes.trim() || null,
       total_bill: null,
       amount_paid: null,
-      tables: [tableId],
+      tables,
     }
     setSaving(true)
     try {
@@ -130,6 +159,20 @@ export function WalkInDialog({
 
         {/* Body */}
         <div className="px-6 pb-3 pt-6 sm:px-7 sm:pt-7">
+          {/* Merge — only when the picked table has partners */}
+          {siblings.length > 0 && (
+            <div className="mb-7">
+              <MergeField
+                primaryTableId={tableId}
+                selected={tables}
+                onChange={setTables}
+                siblings={siblings}
+                disabled={saving}
+                disabledSiblings={disabledSiblings}
+              />
+            </div>
+          )}
+
           {/* PAX */}
           <div className="text-center mb-7">
             <div className="mb-5 text-[10px] font-medium uppercase tracking-[0.28em] text-brand-ink-soft">

@@ -9,66 +9,45 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { CapacityStepper } from "./CapacityStepper"
 import { Toggle } from "./Toggle"
-import { createTable, type Table } from "@/services/tablesService"
-import type { TableSection } from "@/lib/tables"
+import { patchTable, type Table } from "@/services/tablesService"
 import { cn } from "@/lib/utils"
 
-interface AddTableModalProps {
+interface EditTableModalProps {
   open: boolean
   onClose: () => void
-  defaultSection: TableSection
-  /** display_order to assign (max in section + 1). */
-  nextDisplayOrder: number
+  table: Table
   /** Full live table list — used to render same-section partner picker. */
   allTables: Table[]
-  /** Fired after a successful create so the parent can refetch. */
-  onCreated: () => void
+  /** Fired after a successful PATCH so the parent can refetch. */
+  onSaved: () => void
 }
 
 const fieldLabel = "text-[10.5px] font-medium uppercase tracking-[0.18em] text-brand-ink-soft"
 
-const SECTIONS: { value: TableSection; label: string }[] = [
-  { value: "bar", label: "Bar" },
-  { value: "indoor", label: "Indoor" },
-  { value: "terrace", label: "Terrace" },
-]
-
-export function AddTableModal({
+export function EditTableModal({
   open,
   onClose,
-  defaultSection,
-  nextDisplayOrder,
+  table,
   allTables,
-  onCreated,
-}: AddTableModalProps) {
-  const [label, setLabel] = React.useState("")
-  const [capacity, setCapacity] = React.useState(2)
-  const [section, setSection] = React.useState<TableSection>(defaultSection)
-  const [mergeable, setMergeable] = React.useState(false)
-  const [partners, setPartners] = React.useState<number[]>([])
+  onSaved,
+}: EditTableModalProps) {
+  const [capacity, setCapacity] = React.useState(table.capacity)
+  const [active, setActive] = React.useState(table.active)
+  const [mergeable, setMergeable] = React.useState(table.mergeableWith.length > 0)
+  const [partners, setPartners] = React.useState<number[]>(table.mergeableWith)
   const [saving, setSaving] = React.useState(false)
 
   const partnerOptions = React.useMemo(
     () =>
       allTables
-        .filter((t) => t.section === section && t.active)
+        .filter((t) => t.section === table.section && t.id !== table.id)
         .sort((a, b) => a.displayOrder - b.displayOrder),
-    [allTables, section],
+    [allTables, table.section, table.id],
   )
-
-  const canSave = label.trim().length > 0
 
   function togglePartner(id: number) {
     setPartners((prev) =>
@@ -78,21 +57,19 @@ export function AddTableModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!canSave || saving) return
+    if (saving) return
     setSaving(true)
     try {
-      await createTable({
-        label: label.trim(),
+      await patchTable(table.id, {
         capacity,
-        section,
-        display_order: nextDisplayOrder,
+        active,
         mergeable_with: mergeable ? partners : [],
       })
-      toast.success("Table added")
-      onCreated()
+      toast.success(`Table ${table.label} updated`)
+      onSaved()
       onClose()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't add table.")
+      toast.error(err instanceof Error ? err.message : "Couldn't update table.")
     } finally {
       setSaving(false)
     }
@@ -102,53 +79,27 @@ export function AddTableModal({
     <Dialog open={open} onOpenChange={(o) => !o && !saving && onClose()}>
       <DialogContent className="bg-card sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add table</DialogTitle>
+          <DialogTitle>Edit Table #{table.label}</DialogTitle>
           <DialogDescription>
-            New seats appear on the floor immediately. Use the Mergeable toggle
-            to define which tables can combine.
+            Capacity, active state, and merge partners. Section + label are
+            fixed once a table exists.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="table-label" className={fieldLabel}>
-              Label
-            </Label>
-            <Input
-              id="table-label"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. 52 or Bar 15"
-              autoFocus
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <span className={fieldLabel}>Section</span>
-            <Select
-              value={section}
-              onValueChange={(v) => {
-                setSection(v as TableSection)
-                // Partners are section-scoped — drop any picked from the prior section.
-                setPartners([])
-              }}
-            >
-              <SelectTrigger className="h-9 bg-background">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SECTIONS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center justify-between">
+            <Label className={fieldLabel}>Capacity</Label>
+            <CapacityStepper value={capacity} onChange={setCapacity} />
           </div>
 
           <div className="flex items-center justify-between">
-            <span className={fieldLabel}>Capacity</span>
-            <CapacityStepper value={capacity} onChange={setCapacity} />
+            <div className="flex flex-col gap-0.5">
+              <span className={fieldLabel}>Active</span>
+              <span className="text-[10.5px] text-brand-ink-mute">
+                Inactive tables hide from the floor and pickers
+              </span>
+            </div>
+            <Toggle on={active} onChange={setActive} ariaLabel="Active" />
           </div>
 
           <div className="flex items-center justify-between">
@@ -170,7 +121,7 @@ export function AddTableModal({
               <span className={fieldLabel}>Merge with</span>
               {partnerOptions.length === 0 ? (
                 <div className="rounded-[3px] border border-dashed border-hair-strong bg-background px-3 py-3 text-center text-[11px] text-brand-ink-mute">
-                  No other active tables in this section yet.
+                  No other tables in this section.
                 </div>
               ) : (
                 <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-[3px] border border-hair bg-background p-1.5">
@@ -182,6 +133,7 @@ export function AddTableModal({
                         className={cn(
                           "flex cursor-pointer items-center gap-2.5 rounded-[2px] px-2 py-1.5 text-[12.5px] transition-colors",
                           isOn ? "bg-primary/[0.06]" : "hover:bg-foreground/[0.04]",
+                          !t.active && "opacity-55",
                         )}
                       >
                         <input
@@ -195,6 +147,7 @@ export function AddTableModal({
                         </span>
                         <span className="text-[11px] tracking-[0.04em] text-brand-ink-soft">
                           seats {t.capacity}
+                          {!t.active && " · off"}
                         </span>
                       </label>
                     )
@@ -208,8 +161,8 @@ export function AddTableModal({
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!canSave || saving}>
-              {saving ? "Adding…" : "Add table"}
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </form>

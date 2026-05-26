@@ -224,6 +224,7 @@ export default function ServiceMode() {
           onClose={closeModal}
           date={date}
           tableId={modal.tableId}
+          feed={feed}
           onSave={handleSave}
         />
       )}

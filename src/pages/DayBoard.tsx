@@ -354,6 +354,7 @@ export default function DayBoard() {
           onClose={closeModal}
           date={date}
           tableId={modal.tableId}
+          feed={feed}
           onSave={handleSave}
         />
       )}
