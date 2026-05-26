@@ -15,8 +15,13 @@ import {
   X,
 } from "lucide-react"
 
+import { toast } from "sonner"
+import { DayPicker } from "react-day-picker"
+import "react-day-picker/style.css"
+
 import { cn } from "@/lib/utils"
-import { isPastDayLocked, reservationTimeSlots } from "@/lib/dates"
+import { formatDateISO, isPastDayLocked, parseDateISO, reservationTimeSlots } from "@/lib/dates"
+import { checkMergeAvailability } from "@/lib/reservationConflicts"
 import { bucketShift } from "@/services/reservationsService"
 import { lookupCustomer } from "@/services/customersService"
 import type {
@@ -108,7 +113,7 @@ function initials(name: string): string {
 export function ReservationForm({
   open,
   onClose,
-  date,
+  date: propDate,
   feed,
   initialTableId,
   reservation,
@@ -117,6 +122,7 @@ export function ReservationForm({
 }: ReservationFormProps) {
   const isEdit = Boolean(reservation)
   const { getMergeableSiblings } = useFloorTables()
+  const [date, setDate] = React.useState<string>(propDate)
 
   // ---- form state ---------------------------------------------------------
   const initialTables = React.useMemo<string[]>(() => {
@@ -287,6 +293,30 @@ export function ReservationForm({
   async function submit(statusOverride?: ReservationStatus, requireValid = true) {
     if (saving) return
     if (requireValid && !validate()) return
+
+    // Frontend pre-flight for merge overlaps. Only runs when the target status
+    // will hold a table (booked/seated) and the row has at least one merge
+    // sibling — terminal transitions skip this and rely on the backend.
+    const targetStatus: ReservationStatus =
+      statusOverride ?? reservation?.status ?? "booked"
+    if (
+      (targetStatus === "booked" || targetStatus === "seated") &&
+      tables.length > 1
+    ) {
+      const conflict = checkMergeAvailability(
+        date,
+        time,
+        tables,
+        feed ?? null,
+        new Date(),
+        reservation?.id,
+      )
+      if (!conflict.ok) {
+        toast.error(conflict.reason)
+        return
+      }
+    }
+
     setSaving(true)
     try {
       await onSave(buildReservation(statusOverride), buildInput(statusOverride))
@@ -391,7 +421,11 @@ export function ReservationForm({
             <div className="flex flex-col gap-[18px]">
               {/* Date + Time row */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <DateField value={formatDateLabel(date)} />
+                <DateField
+                  value={date}
+                  onChange={setDate}
+                  disabled={isLocked}
+                />
                 <TimeField
                   value={time}
                   onChange={setTime}
@@ -655,23 +689,77 @@ function StatusStrip({
 // Date / Time fields
 // ---------------------------------------------------------------------------
 
-function DateField({ value }: { value: string }) {
+interface DateFieldProps {
+  /** ISO YYYY-MM-DD */
+  value: string
+  onChange: (next: string) => void
+  disabled?: boolean
+}
+
+function isoToDate(iso: string): Date | undefined {
+  const parts = parseDateISO(iso)
+  if (!parts) return undefined
+  return new Date(parts.year, parts.month0, parts.day)
+}
+
+function dateToISO(d: Date): string {
+  return formatDateISO(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+function DateField({ value, onChange, disabled }: DateFieldProps) {
+  const [open, setOpen] = React.useState(false)
+  const selected = isoToDate(value)
+
   return (
     <div>
       <span className={LABEL}>Date</span>
-      <div
-        className={cn(
-          "mt-[7px] flex h-10 items-center gap-2.5 rounded-[3px] border border-hair-strong bg-card px-3",
-        )}
-      >
-        <CalendarIcon className="size-[14px] text-brand-ink-soft" strokeWidth={1.4} />
-        <span className="text-[13px] font-light tracking-[0.02em] text-foreground">
-          {value}
-        </span>
-        <span className="ml-auto text-[10.5px] tracking-[0.06em] text-brand-ink-mute">
-          Today
-        </span>
-      </div>
+      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+        <PopoverPrimitive.Trigger asChild>
+          <button
+            type="button"
+            disabled={disabled}
+            className={cn(
+              "mt-[7px] flex h-10 w-full items-center gap-2.5 rounded-[3px] border border-hair-strong bg-card px-3",
+              "text-left transition-colors",
+              "hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-foreground/[0.06]",
+              "disabled:cursor-not-allowed disabled:opacity-60",
+            )}
+          >
+            <CalendarIcon className="size-[14px] text-brand-ink-soft" strokeWidth={1.4} />
+            <span className="text-[13px] font-light tracking-[0.02em] text-foreground">
+              {formatDateLabel(value)}
+            </span>
+            <ChevronDown className="ml-auto size-3 text-brand-ink-soft" />
+          </button>
+        </PopoverPrimitive.Trigger>
+        <PopoverPrimitive.Portal>
+          <PopoverPrimitive.Content
+            sideOffset={6}
+            align="start"
+            className={cn(
+              "z-[60] rounded-[3px] border border-hair-strong bg-popover p-2 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.18)]",
+              "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
+            )}
+          >
+            <DayPicker
+              mode="single"
+              weekStartsOn={1}
+              showOutsideDays
+              selected={selected}
+              onSelect={(d) => {
+                if (!d) return
+                onChange(dateToISO(d))
+                setOpen(false)
+              }}
+              classNames={{
+                today: "rdp-today text-primary font-medium",
+                selected:
+                  "rdp-selected bg-primary text-primary-foreground rounded-full",
+              }}
+            />
+          </PopoverPrimitive.Content>
+        </PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
     </div>
   )
 }
@@ -715,7 +803,7 @@ function TimeField({ value, onChange, slots, shift, disabled }: TimeFieldProps) 
             sideOffset={6}
             align="start"
             className={cn(
-              "z-[60] max-h-[260px] w-[var(--radix-popover-trigger-width)] overflow-y-auto",
+              "z-[60] max-h-[260px] w-[var(--radix-popover-trigger-width)] overflow-y-auto touch-pan-y overscroll-contain",
               "rounded-[3px] border border-hair-strong bg-popover p-1 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.18)]",
               "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
             )}
@@ -1084,7 +1172,7 @@ function TableField({
             sideOffset={6}
             align="start"
             className={cn(
-              "z-[60] max-h-[300px] w-[var(--radix-popover-trigger-width)] overflow-y-auto",
+              "z-[60] max-h-[300px] w-[var(--radix-popover-trigger-width)] overflow-y-auto touch-pan-y overscroll-contain",
               "rounded-[3px] border border-hair-strong bg-popover p-1 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.18)]",
               "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
             )}

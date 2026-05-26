@@ -200,7 +200,17 @@ export default function DayBoard() {
         if (idx >= 0) return prev.map((x, i) => (i === idx ? saved : x))
         return [...prev, saved]
       })
-      toast.success("Reservation saved")
+      // If the user changed the reservation's date in the form, hop the
+      // DayBoard to the saved day so the row is visible without manual nav.
+      // Clear localReservations first so the moved row doesn't ghost-render
+      // back on the source day if the host navigates there next.
+      if (input.date !== date) {
+        setLocalReservations([])
+        toast.success(`Reservation moved to ${input.date}`)
+        navigate(`/day/${input.date}`)
+      } else {
+        toast.success("Reservation saved")
+      }
       closeModal()
     } catch (err) {
       toast.error(

@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
+import { operationalDate } from "@/lib/dates"
 
 export type WordmarkSize = "sm" | "md" | "lg" | "xl"
 
@@ -6,6 +8,12 @@ interface TsunamiWordmarkProps {
   size?: WordmarkSize
   withDot?: boolean
   className?: string
+  /**
+   * When true, renders inside a Link to the current operational DayBoard.
+   * Don't use this on routes outside the Router (e.g. Login screen) — Link
+   * will throw without a Router context.
+   */
+  asLink?: boolean
 }
 
 const sizeText: Record<WordmarkSize, string> = {
@@ -26,8 +34,9 @@ export function TsunamiWordmark({
   size = "lg",
   withDot = true,
   className,
+  asLink,
 }: TsunamiWordmarkProps) {
-  return (
+  const body = (
     <span
       className={cn(
         "relative inline-block leading-none text-foreground",
@@ -53,5 +62,16 @@ export function TsunamiWordmark({
         />
       )}
     </span>
+  )
+
+  if (!asLink) return body
+  return (
+    <Link
+      to={`/day/${operationalDate()}`}
+      aria-label="Go to today's DayBoard"
+      className="inline-flex outline-none rounded-[2px] focus-visible:ring-2 focus-visible:ring-primary/40"
+    >
+      {body}
+    </Link>
   )
 }

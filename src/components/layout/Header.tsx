@@ -23,7 +23,7 @@ export function Header({ left, center, actions, className }: HeaderProps) {
       )}
     >
       <div className="flex items-center min-w-0">
-        {left ?? <TsunamiWordmark size="sm" />}
+        {left ?? <TsunamiWordmark size="sm" asLink />}
       </div>
       <div className="flex items-center justify-center">{center}</div>
       <div className="flex items-center justify-end gap-1 sm:gap-2.5 min-w-0">

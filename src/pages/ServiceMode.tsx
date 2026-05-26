@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useParams } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 
 import { ServiceHeader } from "@/components/service/ServiceHeader"
@@ -82,6 +82,7 @@ function useMergedFeed(
 
 export default function ServiceMode() {
   const { date: dateParam } = useParams()
+  const navigate = useNavigate()
   const date = safeDate(dateParam)
   const { data, isLoading } = useDay(date)
   const { tables } = useFloorTables()
@@ -138,7 +139,17 @@ export default function ServiceMode() {
         if (idx >= 0) return prev.map((x, i) => (i === idx ? saved : x))
         return [...prev, saved]
       })
-      toast.success("Reservation saved")
+      // Service Mode is day-scoped — if the form moved the reservation to a
+      // different day, hop the dayboard there and exit service view (the new
+      // day may not be the active shift). Clear localReservations first so the
+      // moved row doesn't ghost-render back here if the host returns.
+      if (input.date !== date) {
+        setLocalReservations([])
+        toast.success(`Reservation moved to ${input.date}`)
+        navigate(`/day/${input.date}`)
+      } else {
+        toast.success("Reservation saved")
+      }
       closeModal()
     } catch (err) {
       toast.error(

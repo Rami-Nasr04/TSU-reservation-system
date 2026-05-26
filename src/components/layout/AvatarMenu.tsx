@@ -1,5 +1,13 @@
 import { useNavigate } from "react-router-dom"
-import { BarChart3, ChevronDown, LogOut, Settings, Users } from "lucide-react"
+import {
+  BarChart3,
+  CalendarDays,
+  CalendarRange,
+  ChevronDown,
+  LogOut,
+  Settings,
+  Users,
+} from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { operationalDate } from "@/lib/dates"
 import { useAuth, type UserRole } from "@/contexts/AuthContext"
 
 interface AvatarMenuProps {
@@ -60,6 +69,14 @@ export function AvatarMenu({ className }: AvatarMenuProps) {
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate(`/day/${operationalDate()}`)}>
+          <CalendarDays className="size-3.5" />
+          <span>Dayboard</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/")}>
+          <CalendarRange className="size-3.5" />
+          <span>Calendar</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate("/customers")}>
           <Users className="size-3.5" />
           <span>Customers</span>
