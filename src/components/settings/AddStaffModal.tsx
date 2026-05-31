@@ -25,6 +25,7 @@ interface AddStaffModalProps {
 const fieldLabel = "text-[10.5px] font-medium uppercase tracking-[0.18em] text-brand-ink-soft"
 
 const ROLES: { id: UserRole; label: string; hint: string }[] = [
+  { id: "staff", label: "Staff", hint: "View-only: DayBoard + Calendar. No write actions." },
   { id: "host", label: "Host", hint: "Read + create today's reservations only." },
   { id: "supervisor", label: "Supervisor", hint: "Full DayBoard access. No settings or analytics." },
   { id: "manager", label: "Manager", hint: "Full access: analytics, settings, all reservations." },

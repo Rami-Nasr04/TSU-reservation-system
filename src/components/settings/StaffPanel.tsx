@@ -32,12 +32,14 @@ const ROLE_PILLS: FilterPillOption<RoleFilter>[] = [
   { id: "manager", label: "Manager" },
   { id: "supervisor", label: "Supervisor" },
   { id: "host", label: "Host" },
+  { id: "staff", label: "Staff" },
 ]
 
 const ROLE_LABEL: Record<UserRole, string> = {
   manager: "Manager",
   supervisor: "Supervisor",
   host: "Host",
+  staff: "Staff",
 }
 
 /**

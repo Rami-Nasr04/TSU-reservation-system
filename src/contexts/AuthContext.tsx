@@ -1,6 +1,6 @@
 import * as React from "react"
 
-export type UserRole = "manager" | "supervisor" | "host"
+export type UserRole = "manager" | "supervisor" | "host" | "staff"
 
 export interface AuthUser {
   id: string

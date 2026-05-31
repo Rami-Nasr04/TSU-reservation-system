@@ -28,6 +28,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   manager: "Manager",
   supervisor: "Supervisor",
   host: "Host",
+  staff: "Staff",
 }
 
 function initialsOf(name: string): string {
