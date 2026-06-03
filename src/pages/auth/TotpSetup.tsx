@@ -1,0 +1,168 @@
+import * as React from "react"
+import { useNavigate, Navigate } from "react-router-dom"
+import QRCode from "qrcode"
+import { toast } from "sonner"
+import { useAuth } from "@/contexts/AuthContext"
+import { AuthCard } from "@/components/auth/AuthCard"
+import { DigitInput } from "@/components/auth/DigitInput"
+import { Overline } from "@/components/brand"
+import { cn } from "@/lib/utils"
+
+function formatSecret(s: string): string {
+  return s.match(/.{1,4}/g)?.join(" ") ?? s
+}
+
+export default function TotpSetup() {
+  const navigate = useNavigate()
+  const { pendingChallenge, setupTotp, verifyTotp } = useAuth()
+
+  const [qrDataUrl, setQrDataUrl] = React.useState<string | null>(null)
+  const [secret, setSecret] = React.useState<string | null>(null)
+  const [code, setCode] = React.useState("")
+  const [submitting, setSubmitting] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const didRun = React.useRef(false)
+
+  React.useEffect(() => {
+    if (pendingChallenge?.kind !== "mfaSetup") return
+    if (didRun.current) return
+    didRun.current = true
+    void (async () => {
+      try {
+        const { secretCode, otpauthUrl } = await setupTotp()
+        const dataUrl = await QRCode.toDataURL(otpauthUrl, {
+          margin: 1,
+          width: 192,
+        })
+        setSecret(secretCode)
+        setQrDataUrl(dataUrl)
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Couldn't start MFA enrollment."
+        toast.error(message)
+      }
+    })()
+  }, [pendingChallenge, setupTotp])
+
+  if (pendingChallenge?.kind !== "mfaSetup") {
+    return <Navigate to="/login" replace />
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    if (code.length !== 6) {
+      setError("Enter the 6-digit code from your app.")
+      return
+    }
+    setSubmitting(true)
+    try {
+      const result = await verifyTotp(code)
+      if (result.kind === "tokens") {
+        toast.success("Two-factor enabled.")
+        navigate("/", { replace: true })
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Code is incorrect or expired."
+      setError(message)
+      setCode("")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleCopy() {
+    if (!secret) return
+    try {
+      await navigator.clipboard.writeText(secret)
+      toast.success("Secret copied.")
+    } catch {
+      toast.error("Couldn't copy — select the key and copy manually.")
+    }
+  }
+
+  return (
+    <AuthCard>
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="mb-5 text-center">
+          <Overline size="sm" className="mb-2 block">
+            Two-factor authentication
+          </Overline>
+          <div className="text-[18px] font-normal tracking-[0.02em] text-foreground mb-2">
+            Scan this code
+          </div>
+          <div className="text-[12px] font-light text-brand-ink-soft leading-[1.55]">
+            Open your authenticator app (Google Authenticator, 1Password, etc.)
+            and scan the QR.
+          </div>
+        </div>
+
+        <div className="mb-4 flex justify-center">
+          {qrDataUrl ? (
+            <img
+              src={qrDataUrl}
+              alt="TOTP QR code"
+              className="h-48 w-48 rounded-[3px] border border-hair-strong bg-card p-2"
+            />
+          ) : (
+            <div className="h-48 w-48 animate-pulse rounded-[3px] border border-hair-strong bg-card" />
+          )}
+        </div>
+
+        {secret && (
+          <div className="mb-4">
+            <Overline size="sm" className="mb-1 block text-center">
+              Can't scan? Manual key
+            </Overline>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded-[3px] border border-hair-strong bg-card px-3 py-2 text-center font-mono text-[12px] tracking-[0.12em] text-foreground select-all">
+                {formatSecret(secret)}
+              </code>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="rounded-[3px] border border-hair-strong px-3 py-2 text-[10px] font-medium uppercase tracking-[0.22em] text-foreground hover:bg-card"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        )}
+
+        <Overline size="sm" className="mb-2 block">
+          Enter the 6-digit code from your app
+        </Overline>
+        <DigitInput
+          value={code}
+          onChange={setCode}
+          autoFocus
+          disabled={submitting}
+          className="mb-4"
+        />
+
+        {error && (
+          <p
+            role="alert"
+            className="mt-1 mb-3 text-center text-[12px] text-destructive"
+          >
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={submitting || code.length !== 6}
+          className={cn(
+            "flex h-[46px] w-full items-center justify-center rounded-[3px]",
+            "text-[12px] font-medium uppercase tracking-[0.22em] text-primary-foreground",
+            "bg-primary hover:bg-brand-red-dark transition-colors",
+            "disabled:cursor-not-allowed disabled:opacity-60",
+          )}
+        >
+          {submitting ? "Verifying…" : "Verify code"}
+        </button>
+      </form>
+    </AuthCard>
+  )
+}
