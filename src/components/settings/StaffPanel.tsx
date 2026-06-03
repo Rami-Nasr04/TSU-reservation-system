@@ -42,32 +42,12 @@ const ROLE_LABEL: Record<UserRole, string> = {
   staff: "Staff",
 }
 
-/**
- * Static stand-in until Cognito seeds the users table (P10b). The backend
- * returns `[]` today, so the panel layers this on for visual completeness.
- * REMOVE once `useUsers()` returns live rows — `lastActiveAt` holds friendly
- * display text here, not the ISO timestamps real rows will carry.
- */
-const MOCK_STAFF: StaffUser[] = [
-  { id: "m1", name: "Nadine Daher", email: "nadine@sushitsunami.com", role: "manager", active: true, lastActiveAt: "2 min ago" },
-  { id: "m2", name: "Joseph Tabet", email: "joseph@sushitsunami.com", role: "manager", active: true, lastActiveAt: "Yesterday" },
-  { id: "m3", name: "Rita Saliba", email: "rita@sushitsunami.com", role: "supervisor", active: true, lastActiveAt: "14 min ago" },
-  { id: "m4", name: "Karim Khoury", email: "karim@sushitsunami.com", role: "supervisor", active: true, lastActiveAt: "Today, 10:42" },
-  { id: "m5", name: "Mira Asmar", email: "mira@sushitsunami.com", role: "host", active: true, lastActiveAt: "1h ago" },
-  { id: "m6", name: "Ziad Sleiman", email: "ziad@sushitsunami.com", role: "host", active: true, lastActiveAt: "Today, 09:12" },
-  { id: "m7", name: "Layal Eid", email: "layal@sushitsunami.com", role: "host", active: true, lastActiveAt: "Today, 11:55" },
-  { id: "m8", name: "Tony Murr", email: "tony@sushitsunami.com", role: "host", active: false, lastActiveAt: "May 4" },
-  { id: "m9", name: "Cynthia Bechara", email: "cynthia@sushitsunami.com", role: "supervisor", active: false, lastActiveAt: "Apr 28" },
-]
-
 export function StaffPanel({ users, isLoading, error, refetch }: StaffPanelProps) {
   const [query, setQuery] = React.useState("")
   const [role, setRole] = React.useState<RoleFilter>("all")
   const [adding, setAdding] = React.useState(false)
 
-  // Live rows when present; otherwise the dev mock (removed once Cognito lands).
-  const source = users && users.length > 0 ? users : MOCK_STAFF
-  const usingMock = !(users && users.length > 0)
+  const source = React.useMemo<StaffUser[]>(() => users ?? [], [users])
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -144,13 +124,11 @@ export function StaffPanel({ users, isLoading, error, refetch }: StaffPanelProps
         <FilterPills options={ROLE_PILLS} active={role} onChange={setRole} />
       </div>
 
-      {usingMock && (
-        <p className="text-[10.5px] uppercase tracking-[0.16em] text-brand-ink-mute">
-          Sample data · live staff appear once accounts are wired
-        </p>
-      )}
-
-      {filtered.length === 0 ? (
+      {source.length === 0 ? (
+        <div className="rounded-[3px] border border-hair bg-background py-14 text-center text-[12px] text-brand-ink-soft">
+          No staff yet. Add a manager, supervisor, host, or staff member to get started.
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="rounded-[3px] border border-hair bg-background py-14 text-center text-[11.5px] text-brand-ink-soft">
           No staff match your search.
         </div>
