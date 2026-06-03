@@ -1,3 +1,5 @@
+import { getIdToken, tryRefresh, onAuthFailure } from "@/lib/authBridge"
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? ""
 
 export interface ApiResponse<T> {
@@ -6,15 +8,14 @@ export interface ApiResponse<T> {
   error?: { code: string; message: string }
 }
 
-// Per-URL mock fallback. Add a path prefix here to force a service back to its
-// in-memory mock generator instead of hitting the live API.
-// Pattern reference: KJ-77/Way src/Hooks/useFetch.js — shouldUseMock(url).
-// Entries are path PREFIXES, not regexes: `'/reservations'` matches
-// `/reservations`, `/reservations/{id}`, and `/reservations?date=...`.
 export const MOCK_ENDPOINTS: string[] = []
 
 export const shouldUseMock = (path: string): boolean =>
   MOCK_ENDPOINTS.some((p) => path.startsWith(p))
+
+interface InternalInit extends RequestInit {
+  _noRetry?: boolean
+}
 
 export async function apiFetch<T>(
   path: string,
@@ -29,15 +30,36 @@ export async function apiFetch<T>(
       },
     }
   }
+  const internal = (init ?? {}) as InternalInit
   try {
-    const method = (init?.method ?? "GET").toUpperCase()
-    const headers: Record<string, string> = { ...(init?.headers as Record<string, string> | undefined ?? {}) }
+    const method = (internal.method ?? "GET").toUpperCase()
+    const headers: Record<string, string> = {
+      ...((internal.headers as Record<string, string> | undefined) ?? {}),
+    }
     if (method !== "GET" && method !== "HEAD" && !headers["Content-Type"]) {
       headers["Content-Type"] = "application/json"
     }
-    const res = await fetch(`${BASE_URL}${path}`, { ...init, headers })
-    const body = (await res.json()) as ApiResponse<T>
-    return body
+    const idToken = getIdToken()
+    if (idToken && !headers["Authorization"]) {
+      headers["Authorization"] = `Bearer ${idToken}`
+    }
+    const res = await fetch(`${BASE_URL}${path}`, { ...internal, headers })
+
+    if (res.status === 401 && idToken && !internal._noRetry) {
+      const refreshed = await tryRefresh()
+      if (refreshed) {
+        return apiFetch<T>(path, {
+          ...internal,
+          _noRetry: true,
+        } as InternalInit)
+      }
+      onAuthFailure()
+      return {
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Session expired. Please sign in." },
+      }
+    }
+    return (await res.json()) as ApiResponse<T>
   } catch (err) {
     const message = err instanceof Error ? err.message : "Network error"
     return { success: false, error: { code: "NETWORK", message } }
