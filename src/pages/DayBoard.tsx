@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import { MonitorPlay } from "lucide-react"
 
 import { useAuth } from "@/contexts/AuthContext"
+import { canWrite } from "@/lib/auth"
 import { AppShell } from "@/components/layout/AppShell"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { BackLink } from "@/components/dayboard/BackLink"
@@ -122,7 +123,8 @@ function useMergedFeed(
 export default function DayBoard() {
   const { date: dateParam } = useParams()
   const navigate = useNavigate()
-  const { hasRole } = useAuth()
+  const { hasRole, userGroups } = useAuth()
+  const writeOk = canWrite(userGroups)
   const variant = useVariant()
   const isMobile = variant === "mobile"
   const isTablet = variant === "tablet"
@@ -160,7 +162,11 @@ export default function DayBoard() {
       openModal({ kind: "reservation", tableId, reservation: resv })
       return
     }
-    // Free table — gate by date.
+    // Free table — gate by role first, then by date.
+    if (!writeOk) {
+      toast.info("View-only access")
+      return
+    }
     if (past) {
       toast.info("Past day — view only.")
       return
@@ -267,7 +273,7 @@ export default function DayBoard() {
           </button>
         )
       )}
-      {!past && (
+      {!past && writeOk && (
         <NewReservationButton isMobile={isMobile} onClick={handleNewReservation} />
       )}
       <ThemeToggle />
@@ -314,6 +320,7 @@ export default function DayBoard() {
               activeShift={activeShift}
               isEmpty={isEmpty}
               date={date}
+              readOnly={!writeOk}
               drawerOpen={drawerOpen}
               onOpenDrawer={() => setDrawerOpen(true)}
               onCloseDrawer={() => setDrawerOpen(false)}
@@ -335,6 +342,7 @@ export default function DayBoard() {
                   <EmptyDayState
                     date={date}
                     feed={feed}
+                    readOnly={!writeOk}
                     onNewReservation={handleNewReservation}
                   />
                 ) : (
@@ -377,6 +385,7 @@ export default function DayBoard() {
           feed={feed}
           initialTableId={modal.tableId}
           reservation={modal.reservation}
+          readOnly={!writeOk}
           onSave={handleSave}
           onCheckout={handleCheckout}
         />
@@ -405,6 +414,7 @@ interface MobileBodyProps {
   activeShift: ActiveShift
   isEmpty: boolean
   date: string
+  readOnly: boolean
   drawerOpen: boolean
   onOpenDrawer: () => void
   onCloseDrawer: () => void
@@ -418,6 +428,7 @@ function MobileBody({
   activeShift,
   isEmpty,
   date,
+  readOnly,
   drawerOpen,
   onOpenDrawer,
   onCloseDrawer,
@@ -448,6 +459,7 @@ function MobileBody({
             <EmptyDayState
               date={date}
               feed={feed}
+              readOnly={readOnly}
               onNewReservation={onNewReservation}
             />
           ) : (
