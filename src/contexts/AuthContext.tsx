@@ -11,6 +11,7 @@ import {
 } from "@/lib/cognito"
 import { tokenStorage } from "@/lib/tokenStorage"
 import { setAuthBridge } from "@/lib/authBridge"
+import { apiFetch } from "@/services/apiClient"
 
 export type UserRole = "manager" | "supervisor" | "host" | "staff"
 
@@ -320,13 +321,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [pendingChallenge, hydrateTokens],
   )
 
-  const forgotPassword = React.useCallback(async () => {
-    throw new Error("placeholder — implemented in B3")
+  const forgotPassword = React.useCallback(async (email: string) => {
+    const res = await apiFetch<{ deliveryMedium: string; destination: string }>(
+      "/auth/forgot-password",
+      { method: "POST", body: JSON.stringify({ email }) },
+    )
+    if (!res.success || !res.data) {
+      throw new Error(res.error?.message ?? "Could not start password reset.")
+    }
+    return res.data
   }, [])
 
-  const resetPassword = React.useCallback(async () => {
-    throw new Error("placeholder — implemented in B3")
-  }, [])
+  const resetPassword = React.useCallback(
+    async (email: string, code: string, newPassword: string) => {
+      const res = await apiFetch<void>("/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({ email, code, newPassword }),
+      })
+      if (!res.success) {
+        throw new Error(res.error?.message ?? "Could not reset password.")
+      }
+    },
+    [],
+  )
 
   // Boot rehydration
   React.useEffect(() => {
