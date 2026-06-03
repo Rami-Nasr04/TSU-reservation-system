@@ -8,16 +8,18 @@ interface EmptyDayStateProps {
   date: string
   /** Day feed used to keep yesterday editable while a seated row is still active. */
   feed?: DayFeed | null
+  /** Staff role gate — hides the CTA the same way a past-day lock does. */
+  readOnly?: boolean
   /** Triggered when the user creates a new reservation. Hidden on past days. */
   onNewReservation: () => void
 }
 
-export function EmptyDayState({ date, feed, onNewReservation }: EmptyDayStateProps) {
+export function EmptyDayState({ date, feed, readOnly, onNewReservation }: EmptyDayStateProps) {
   // Visual past-day styling stays on the wall-clock date.
   // CTA gating uses the operational-day rule so yesterday stays editable
   // while a seated reservation is still active (pre-5 AM shift).
   const past = isPastDate(date)
-  const locked = isPastDayLocked(date, feed)
+  const locked = isPastDayLocked(date, feed) || !!readOnly
 
   return (
     <div className="flex h-full w-full items-center justify-center p-8">
