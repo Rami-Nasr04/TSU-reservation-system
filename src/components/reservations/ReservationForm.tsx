@@ -47,6 +47,8 @@ interface ReservationFormProps {
   feed?: DayFeed | null
   initialTableId?: string
   reservation?: Reservation
+  /** Staff role gate — disables every input/transition the same way a past-day lock does. */
+  readOnly?: boolean
   onSave: (r: Reservation, input: ReservationInput) => Promise<void>
   onCheckout?: () => void
 }
@@ -117,6 +119,7 @@ export function ReservationForm({
   feed,
   initialTableId,
   reservation,
+  readOnly = false,
   onSave,
   onCheckout,
 }: ReservationFormProps) {
@@ -202,8 +205,8 @@ export function ReservationForm({
   const computedShift = bucketShift(time)
   const status = reservation?.status
 
-  // Past-day-locked overrides every other gate: the whole form is view-only.
-  const isLocked = isPastDayLocked(date, feed)
+  // Past-day-locked and staff-readOnly share the same view-only treatment.
+  const isLocked = isPastDayLocked(date, feed) || readOnly
 
   // Live transitions on booked/seated reservations.
   const canCancel = isEdit && !isLocked && (status === "booked" || status === "seated")
@@ -470,8 +473,8 @@ export function ReservationForm({
                 disabled={isLocked}
               />
 
-              {/* Merge (only if primary is mergeable) */}
-              {mergeable.length > 0 && (
+              {/* Merge (only if primary is mergeable; hidden entirely in staff view) */}
+              {!readOnly && mergeable.length > 0 && (
                 <MergeField
                   primaryTableId={primaryTableId}
                   selected={tables}
