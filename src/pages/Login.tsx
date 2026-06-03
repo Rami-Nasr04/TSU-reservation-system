@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useNavigate, useLocation } from "react-router-dom"
+import { useNavigate, useLocation, Link } from "react-router-dom"
 import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
@@ -42,15 +42,26 @@ export default function Login() {
     if (!email) next.email = "Enter your email address."
     else if (!EMAIL_RE.test(email)) next.email = "That email doesn't look right."
     if (!password) next.password = "Enter your password."
-    else if (password.length < 6)
-      next.password = "Password must be at least 6 characters."
     setErrors(next)
     if (Object.keys(next).length > 0) return
 
     setSubmitting(true)
     try {
-      await signIn(email, password)
-      navigate(redirectTo, { replace: true })
+      const result = await signIn(email, password)
+      switch (result.kind) {
+        case "tokens":
+          navigate(redirectTo, { replace: true })
+          break
+        case "newPasswordRequired":
+          navigate("/auth/welcome")
+          break
+        case "mfaSetup":
+          navigate("/auth/totp-setup")
+          break
+        case "mfaPrompt":
+          navigate("/auth/totp-prompt")
+          break
+      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Sign in failed. Please try again."
@@ -181,16 +192,12 @@ export default function Login() {
 
           {/* Forgot password */}
           <div className="mt-5 text-center">
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault()
-                toast.info("Password reset is handled by the manager.")
-              }}
+            <Link
+              to="/auth/forgot"
               className="text-[12px] font-light tracking-[0.04em] text-brand-ink-soft border-b border-brand-hair-strong pb-px hover:text-foreground"
             >
               Forgot password?
-            </a>
+            </Link>
           </div>
         </form>
 
