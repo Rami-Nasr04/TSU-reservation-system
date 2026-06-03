@@ -5,6 +5,7 @@ import {
   CalendarRange,
   ChevronDown,
   LogOut,
+  MonitorPlay,
   Settings,
   Users,
 } from "lucide-react"
@@ -19,6 +20,7 @@ import {
 import { cn } from "@/lib/utils"
 import { operationalDate } from "@/lib/dates"
 import { useAuth, type UserRole } from "@/contexts/AuthContext"
+import { canWrite } from "@/lib/auth"
 
 interface AvatarMenuProps {
   className?: string
@@ -42,6 +44,7 @@ export function AvatarMenu({ className }: AvatarMenuProps) {
   if (!user) return null
   const role = userGroups[0]
   const isManager = hasRole("manager")
+  const writeOk = canWrite(userGroups)
 
   return (
     <DropdownMenu>
@@ -78,10 +81,20 @@ export function AvatarMenu({ className }: AvatarMenuProps) {
           <CalendarRange className="size-3.5" />
           <span>Calendar</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate("/customers")}>
-          <Users className="size-3.5" />
-          <span>Customers</span>
-        </DropdownMenuItem>
+        {writeOk && (
+          <DropdownMenuItem
+            onClick={() => navigate(`/day/${operationalDate()}/service`)}
+          >
+            <MonitorPlay className="size-3.5" />
+            <span>Service</span>
+          </DropdownMenuItem>
+        )}
+        {writeOk && (
+          <DropdownMenuItem onClick={() => navigate("/customers")}>
+            <Users className="size-3.5" />
+            <span>Customers</span>
+          </DropdownMenuItem>
+        )}
         {isManager && (
           <DropdownMenuItem onClick={() => navigate("/analytics")}>
             <BarChart3 className="size-3.5" />
