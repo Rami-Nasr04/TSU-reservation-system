@@ -2,6 +2,11 @@ import * as React from "react"
 import {
   initiateUserPasswordAuth,
   initiateRefresh,
+  respondNewPassword,
+  associateSoftwareToken,
+  verifySoftwareToken,
+  respondMfaSetup,
+  respondSoftwareTokenMfa,
   parseIdTokenClaims,
 } from "@/lib/cognito"
 import { tokenStorage } from "@/lib/tokenStorage"
@@ -219,23 +224,101 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [clearAuth])
 
   const completeNewPassword = React.useCallback(
-    async (): Promise<SignInResult> => {
-      throw new Error("placeholder — implemented in B2")
+    async (newPassword: string): Promise<SignInResult> => {
+      if (pendingChallenge?.kind !== "newPasswordRequired") {
+        throw new Error("No pending NEW_PASSWORD_REQUIRED challenge")
+      }
+      const outcome = await respondNewPassword(
+        pendingChallenge.session,
+        pendingChallenge.username,
+        newPassword,
+      )
+      if ("authenticationResult" in outcome) {
+        hydrateTokens(outcome.authenticationResult)
+        return { kind: "tokens" }
+      }
+      if (outcome.challengeName === "MFA_SETUP") {
+        setPendingChallenge({
+          kind: "mfaSetup",
+          session: outcome.session,
+          username: pendingChallenge.username,
+        })
+        return { kind: "mfaSetup" }
+      }
+      if (outcome.challengeName === "SOFTWARE_TOKEN_MFA") {
+        setPendingChallenge({
+          kind: "mfaPrompt",
+          session: outcome.session,
+          username: pendingChallenge.username,
+        })
+        return { kind: "mfaPrompt" }
+      }
+      throw new Error(
+        `Unexpected challenge after new password: ${outcome.challengeName}`,
+      )
     },
-    [],
+    [pendingChallenge, hydrateTokens],
   )
 
   const setupTotp = React.useCallback(async () => {
-    throw new Error("placeholder — implemented in B2")
-  }, [])
+    if (pendingChallenge?.kind !== "mfaSetup") {
+      throw new Error("No pending MFA_SETUP challenge")
+    }
+    const { secretCode, session } = await associateSoftwareToken(
+      pendingChallenge.session,
+    )
+    setPendingChallenge({
+      kind: "mfaSetup",
+      session,
+      username: pendingChallenge.username,
+    })
+    const otpauthUrl = `otpauth://totp/TSU:${encodeURIComponent(
+      pendingChallenge.username,
+    )}?secret=${secretCode}&issuer=TSU`
+    return { secretCode, otpauthUrl }
+  }, [pendingChallenge])
 
-  const verifyTotp = React.useCallback(async () => {
-    throw new Error("placeholder — implemented in B2")
-  }, [])
+  const verifyTotp = React.useCallback(
+    async (userCode: string): Promise<SignInResult> => {
+      if (pendingChallenge?.kind !== "mfaSetup") {
+        throw new Error("No pending MFA_SETUP challenge")
+      }
+      const verify = await verifySoftwareToken(pendingChallenge.session, userCode)
+      if (verify.status !== "SUCCESS" || !verify.session) {
+        throw new Error("Code is incorrect or expired.")
+      }
+      const outcome = await respondMfaSetup(verify.session, pendingChallenge.username)
+      if ("authenticationResult" in outcome) {
+        hydrateTokens(outcome.authenticationResult)
+        return { kind: "tokens" }
+      }
+      throw new Error(
+        `Unexpected challenge after MFA setup: ${outcome.challengeName}`,
+      )
+    },
+    [pendingChallenge, hydrateTokens],
+  )
 
-  const confirmMfa = React.useCallback(async () => {
-    throw new Error("placeholder — implemented in B2")
-  }, [])
+  const confirmMfa = React.useCallback(
+    async (code: string): Promise<SignInResult> => {
+      if (pendingChallenge?.kind !== "mfaPrompt") {
+        throw new Error("No pending SOFTWARE_TOKEN_MFA challenge")
+      }
+      const outcome = await respondSoftwareTokenMfa(
+        pendingChallenge.session,
+        pendingChallenge.username,
+        code,
+      )
+      if ("authenticationResult" in outcome) {
+        hydrateTokens(outcome.authenticationResult)
+        return { kind: "tokens" }
+      }
+      throw new Error(
+        `Unexpected challenge after MFA prompt: ${outcome.challengeName}`,
+      )
+    },
+    [pendingChallenge, hydrateTokens],
+  )
 
   const forgotPassword = React.useCallback(async () => {
     throw new Error("placeholder — implemented in B3")
