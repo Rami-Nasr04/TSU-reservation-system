@@ -1,12 +1,14 @@
 import {
   AssociateSoftwareTokenCommand,
   CognitoIdentityProviderClient,
+  ConfirmDeviceCommand,
   InitiateAuthCommand,
   RespondToAuthChallengeCommand,
   VerifySoftwareTokenCommand,
   type AuthenticationResultType,
   type ChallengeNameType,
 } from "@aws-sdk/client-cognito-identity-provider"
+import { createDeviceVerifier } from "cognito-srp-helper"
 
 const REGION = import.meta.env.VITE_COGNITO_REGION
 const USER_POOL_ID = import.meta.env.VITE_COGNITO_USER_POOL_ID
@@ -144,6 +146,35 @@ export async function respondSoftwareTokenMfa(
     }),
   )
   return toOutcome(res)
+}
+
+// Register the device with Cognito so subsequent sign-ins can skip the MFA
+// challenge (pool config: "Always remember devices" + "Trust remembered
+// devices to suppress MFA"). Cognito treats DEVICE_KEY as untrusted until
+// ConfirmDevice has been called with a SRP password verifier. The helper
+// returns the DeviceRandomPassword we store locally for any future
+// DEVICE_PASSWORD_VERIFIER challenge.
+export async function confirmDevice(
+  accessToken: string,
+  deviceKey: string,
+  deviceGroupKey: string,
+  deviceName?: string,
+): Promise<{ devicePassword: string }> {
+  const { DeviceRandomPassword, DeviceSecretVerifierConfig } =
+    createDeviceVerifier(deviceKey, deviceGroupKey)
+  await client.send(
+    new ConfirmDeviceCommand({
+      AccessToken: accessToken,
+      DeviceKey: deviceKey,
+      DeviceName:
+        deviceName ??
+        (typeof navigator !== "undefined"
+          ? navigator.userAgent.slice(0, 80)
+          : "Browser"),
+      DeviceSecretVerifierConfig,
+    }),
+  )
+  return { devicePassword: DeviceRandomPassword }
 }
 
 // Lightweight JWT claims parse (no signature verify — backend authorizer is

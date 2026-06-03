@@ -7,6 +7,7 @@ import {
   verifySoftwareToken,
   respondMfaSetup,
   respondSoftwareTokenMfa,
+  confirmDevice,
   parseIdTokenClaims,
 } from "@/lib/cognito"
 import { tokenStorage } from "@/lib/tokenStorage"
@@ -152,6 +153,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
         deviceGroupKey: auth.NewDeviceMetadata?.DeviceGroupKey,
       })
       armRefreshTimer(claims.exp)
+
+      // Register the device with Cognito so subsequent sign-ins skip MFA.
+      // Fire-and-forget: a failure means MFA re-prompts next time, not a
+      // sign-in blocker. NewDeviceMetadata is only emitted on the first
+      // sign-in from a given device (after MFA enrollment).
+      const accessToken = auth.AccessToken
+      const newDeviceKey = auth.NewDeviceMetadata?.DeviceKey
+      const newDeviceGroupKey = auth.NewDeviceMetadata?.DeviceGroupKey
+      if (accessToken && newDeviceKey && newDeviceGroupKey) {
+        void confirmDevice(accessToken, newDeviceKey, newDeviceGroupKey)
+          .then(({ devicePassword }) => {
+            tokenStorage.save({ devicePassword })
+          })
+          .catch((err) => {
+            console.warn(
+              "ConfirmDevice failed — remembered-device MFA skip will not take effect",
+              err,
+            )
+          })
+      }
     },
     [armRefreshTimer],
   )
@@ -221,7 +242,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = React.useCallback(async () => {
     clearAuth()
-    tokenStorage.clear()
+    // Keep device keys so the next sign-in on this browser still presents as
+    // a remembered device and skips MFA.
+    tokenStorage.clearSession()
   }, [clearAuth])
 
   const completeNewPassword = React.useCallback(
@@ -351,7 +374,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     void (async () => {
       const ok = await refreshTokensSilent()
       if (!cancelled) {
-        if (!ok) tokenStorage.clear()
+        // Refresh may fail simply because the 5-day window elapsed; keep
+        // device keys so the manual sign-in that follows still skips MFA.
+        if (!ok) tokenStorage.clearSession()
         setIsLoading(false)
       }
     })()
