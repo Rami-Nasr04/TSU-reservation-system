@@ -156,13 +156,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Register the device with Cognito so subsequent sign-ins skip MFA.
       // Fire-and-forget: a failure means MFA re-prompts next time, not a
-      // sign-in blocker. NewDeviceMetadata is only emitted on the first
-      // sign-in from a given device (after MFA enrollment).
+      // sign-in blocker.
+      //
+      // Two paths fire ConfirmDevice:
+      //   1. Fresh enrollment — Cognito emits NewDeviceMetadata on this auth.
+      //   2. Migration — a previous sign-in stashed deviceKey/deviceGroupKey
+      //      but never confirmed (e.g., enrolled before this code shipped).
+      //      Cognito will not re-emit NewDeviceMetadata for an already-known
+      //      device, so we opportunistically confirm using stored values.
       const accessToken = auth.AccessToken
-      const newDeviceKey = auth.NewDeviceMetadata?.DeviceKey
-      const newDeviceGroupKey = auth.NewDeviceMetadata?.DeviceGroupKey
-      if (accessToken && newDeviceKey && newDeviceGroupKey) {
-        void confirmDevice(accessToken, newDeviceKey, newDeviceGroupKey)
+      const fromMetadata =
+        auth.NewDeviceMetadata?.DeviceKey &&
+        auth.NewDeviceMetadata?.DeviceGroupKey
+          ? {
+              deviceKey: auth.NewDeviceMetadata.DeviceKey,
+              deviceGroupKey: auth.NewDeviceMetadata.DeviceGroupKey,
+              isMigration: false,
+            }
+          : null
+      const fromStorage =
+        !tokenStorage.devicePassword &&
+        tokenStorage.deviceKey &&
+        tokenStorage.deviceGroupKey
+          ? {
+              deviceKey: tokenStorage.deviceKey,
+              deviceGroupKey: tokenStorage.deviceGroupKey,
+              isMigration: true,
+            }
+          : null
+      const target = fromMetadata ?? fromStorage
+      if (accessToken && target) {
+        void confirmDevice(
+          accessToken,
+          target.deviceKey,
+          target.deviceGroupKey,
+        )
           .then(({ devicePassword }) => {
             tokenStorage.save({ devicePassword })
           })
@@ -171,6 +199,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
               "ConfirmDevice failed — remembered-device MFA skip will not take effect",
               err,
             )
+            // Migration path: the stored DeviceKey was unusable. Drop it so
+            // the next sign-in lets Cognito issue fresh NewDeviceMetadata
+            // instead of looping on a dead key.
+            if (target.isMigration) tokenStorage.clearDevice()
           })
       }
     },

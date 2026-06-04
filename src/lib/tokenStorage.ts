@@ -61,6 +61,15 @@ export const tokenStorage = {
   clearSession(): void {
     safeRemove(KEYS.refreshToken)
   },
+  // Drop just the device state. Used as an escape hatch when a stored
+  // DeviceKey/DeviceGroupKey turns out to be unusable (e.g., the device was
+  // forgotten in the Cognito console, or migration ConfirmDevice fails) —
+  // forces the next sign-in to enroll a fresh device.
+  clearDevice(): void {
+    safeRemove(KEYS.deviceKey)
+    safeRemove(KEYS.deviceGroupKey)
+    safeRemove(KEYS.devicePassword)
+  },
   // Full wipe including device state. Used when auth is fundamentally broken
   // (e.g., mid-session 401 with refresh rejected — user was deleted or pool
   // rotated).

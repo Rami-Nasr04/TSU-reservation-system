@@ -45,6 +45,20 @@ describe("tokenStorage", () => {
     expect(tokenStorage.devicePassword).toBe("p")
   })
 
+  it("clearDevice() wipes only device state; refresh token survives", () => {
+    tokenStorage.save({
+      refreshToken: "r",
+      deviceKey: "d",
+      deviceGroupKey: "g",
+      devicePassword: "p",
+    })
+    tokenStorage.clearDevice()
+    expect(tokenStorage.refreshToken).toBe("r")
+    expect(tokenStorage.deviceKey).toBeNull()
+    expect(tokenStorage.deviceGroupKey).toBeNull()
+    expect(tokenStorage.devicePassword).toBeNull()
+  })
+
   it("save() updates refreshToken without clobbering existing deviceKey", () => {
     tokenStorage.save({ refreshToken: "r1", deviceKey: "d1", deviceGroupKey: "g1" })
     tokenStorage.save({ refreshToken: "r2" })
