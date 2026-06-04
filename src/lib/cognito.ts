@@ -8,7 +8,12 @@ import {
   type AuthenticationResultType,
   type ChallengeNameType,
 } from "@aws-sdk/client-cognito-identity-provider"
-import { createDeviceVerifier } from "cognito-srp-helper"
+import {
+  createDeviceVerifier,
+  createSrpSession,
+  signSrpSessionWithDevice,
+  wrapAuthChallenge,
+} from "cognito-srp-helper"
 
 const REGION = import.meta.env.VITE_COGNITO_REGION
 const USER_POOL_ID = import.meta.env.VITE_COGNITO_USER_POOL_ID
@@ -130,6 +135,71 @@ export async function respondMfaSetup(
     }),
   )
   return toOutcome(res)
+}
+
+// When a USER_PASSWORD_AUTH call carries a confirmed DEVICE_KEY, Cognito
+// challenges DEVICE_SRP_AUTH to verify the SDK actually holds the device's
+// SRP password. Two-step exchange, fully automatic — user never sees it:
+//   1. Send SRP_A in DEVICE_SRP_AUTH → Cognito returns DEVICE_PASSWORD_VERIFIER
+//      with SRP_B, SALT, SECRET_BLOCK in ChallengeParameters.
+//   2. Sign the session with the stored device password → send the
+//      PASSWORD_CLAIM_* fields → tokens.
+export async function respondDeviceSrpAuth(
+  session: string,
+  username: string,
+  deviceKey: string,
+  deviceGroupKey: string,
+  devicePassword: string,
+): Promise<AuthOutcome> {
+  if (!USER_POOL_ID) {
+    throw new Error("Cognito pool ID not configured")
+  }
+  // Password is unused by the device flow; createSrpSession requires the
+  // arg but only uses it for USER_SRP_AUTH PASSWORD_VERIFIER.
+  const srpSession = createSrpSession(username, "", USER_POOL_ID, false)
+
+  const verifierRes = await client.send(
+    new RespondToAuthChallengeCommand({
+      ClientId: CLIENT_ID,
+      ChallengeName: "DEVICE_SRP_AUTH",
+      Session: session,
+      ChallengeResponses: {
+        USERNAME: username,
+        DEVICE_KEY: deviceKey,
+        SRP_A: srpSession.largeA,
+      },
+    }),
+  )
+  if (verifierRes.AuthenticationResult) {
+    return { authenticationResult: verifierRes.AuthenticationResult }
+  }
+  if (
+    verifierRes.ChallengeName !== "DEVICE_PASSWORD_VERIFIER" ||
+    !verifierRes.Session
+  ) {
+    return toOutcome(verifierRes)
+  }
+
+  const signed = signSrpSessionWithDevice(
+    srpSession,
+    verifierRes,
+    deviceGroupKey,
+    devicePassword,
+  )
+  const finalRes = await client.send(
+    new RespondToAuthChallengeCommand(
+      wrapAuthChallenge(signed, {
+        ClientId: CLIENT_ID,
+        ChallengeName: "DEVICE_PASSWORD_VERIFIER",
+        Session: verifierRes.Session,
+        ChallengeResponses: {
+          USERNAME: username,
+          DEVICE_KEY: deviceKey,
+        },
+      }),
+    ),
+  )
+  return toOutcome(finalRes)
 }
 
 export async function respondSoftwareTokenMfa(

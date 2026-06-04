@@ -7,6 +7,7 @@ import {
   verifySoftwareToken,
   respondMfaSetup,
   respondSoftwareTokenMfa,
+  respondDeviceSrpAuth,
   confirmDevice,
   parseIdTokenClaims,
 } from "@/lib/cognito"
@@ -245,6 +246,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
           hydrateTokens(outcome.authenticationResult)
           return { kind: "tokens" }
         }
+
+        // DEVICE_SRP_AUTH is an internal Cognito challenge that proves the
+        // SDK still holds the device's SRP password. We run the two-step
+        // exchange transparently and re-evaluate the resulting outcome —
+        // user never sees this state. If our local devicePassword went
+        // missing, the device state is inconsistent: drop it so the next
+        // sign-in can re-enroll.
+        let nextOutcome: typeof outcome = outcome
+        if (outcome.challengeName === "DEVICE_SRP_AUTH") {
+          const deviceKey = tokenStorage.deviceKey
+          const deviceGroupKey = tokenStorage.deviceGroupKey
+          const devicePassword = tokenStorage.devicePassword
+          if (!deviceKey || !deviceGroupKey || !devicePassword) {
+            tokenStorage.clearDevice()
+            throw new Error(
+              "Device state is out of sync. Please sign in again.",
+            )
+          }
+          const deviceOutcome = await respondDeviceSrpAuth(
+            outcome.session,
+            email,
+            deviceKey,
+            deviceGroupKey,
+            devicePassword,
+          )
+          if ("authenticationResult" in deviceOutcome) {
+            hydrateTokens(deviceOutcome.authenticationResult)
+            return { kind: "tokens" }
+          }
+          nextOutcome = deviceOutcome
+        }
+
         const kindMap: Record<
           string,
           "newPasswordRequired" | "mfaSetup" | "mfaPrompt"
@@ -253,13 +286,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
           MFA_SETUP: "mfaSetup",
           SOFTWARE_TOKEN_MFA: "mfaPrompt",
         }
-        const kind = kindMap[outcome.challengeName]
+        const kind = kindMap[nextOutcome.challengeName]
         if (!kind) {
           throw new Error(
-            `Unsupported Cognito challenge: ${outcome.challengeName}`,
+            `Unsupported Cognito challenge: ${nextOutcome.challengeName}`,
           )
         }
-        setPendingChallenge({ kind, session: outcome.session, username: email })
+        setPendingChallenge({
+          kind,
+          session: nextOutcome.session,
+          username: email,
+        })
         return { kind }
       } catch (err) {
         const name = (err as { name?: string }).name
