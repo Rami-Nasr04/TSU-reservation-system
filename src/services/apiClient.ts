@@ -1,4 +1,5 @@
-import { getIdToken, tryRefresh, onAuthFailure } from "@/lib/authBridge"
+import { userPool } from "@/lib/cognito"
+import type { CognitoUserSession } from "amazon-cognito-identity-js"
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ""
 
@@ -9,12 +10,20 @@ export interface ApiResponse<T> {
 }
 
 export const MOCK_ENDPOINTS: string[] = []
-
 export const shouldUseMock = (path: string): boolean =>
   MOCK_ENDPOINTS.some((p) => path.startsWith(p))
 
-interface InternalInit extends RequestInit {
-  _noRetry?: boolean
+// Resolves to a valid ID token JWT, automatically refreshing via the lib if
+// the cached one expired. Returns null if there's no user session at all.
+function getIdToken(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const user = userPool.getCurrentUser()
+    if (!user) return resolve(null)
+    user.getSession((err: Error | null, session: CognitoUserSession | null) => {
+      if (err || !session?.isValid()) return resolve(null)
+      resolve(session.getIdToken().getJwtToken())
+    })
+  })
 }
 
 export async function apiFetch<T>(
@@ -30,33 +39,31 @@ export async function apiFetch<T>(
       },
     }
   }
-  const internal = (init ?? {}) as InternalInit
   try {
-    const method = (internal.method ?? "GET").toUpperCase()
+    const method = (init?.method ?? "GET").toUpperCase()
     const headers: Record<string, string> = {
-      ...((internal.headers as Record<string, string> | undefined) ?? {}),
+      ...((init?.headers as Record<string, string> | undefined) ?? {}),
     }
     if (method !== "GET" && method !== "HEAD" && !headers["Content-Type"]) {
       headers["Content-Type"] = "application/json"
     }
-    const idToken = getIdToken()
-    if (idToken && !headers["Authorization"]) {
-      headers["Authorization"] = `Bearer ${idToken}`
+    const token = await getIdToken()
+    if (token && !headers["Authorization"]) {
+      headers["Authorization"] = `Bearer ${token}`
     }
-    const res = await fetch(`${BASE_URL}${path}`, { ...internal, headers })
-
-    if (res.status === 401 && idToken && !internal._noRetry) {
-      const refreshed = await tryRefresh()
-      if (refreshed) {
-        return apiFetch<T>(path, {
-          ...internal,
-          _noRetry: true,
-        } as InternalInit)
-      }
-      onAuthFailure()
+    const res = await fetch(`${BASE_URL}${path}`, { ...init, headers })
+    if (res.status === 401) {
+      // getSession() already attempted refresh and returned a valid token if
+      // possible; a 401 here means the session is gone for good. Sign out so
+      // ProtectedRoute kicks the user back to /login.
+      const user = userPool.getCurrentUser()
+      user?.signOut()
       return {
         success: false,
-        error: { code: "UNAUTHORIZED", message: "Session expired. Please sign in." },
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Session expired. Please sign in.",
+        },
       }
     }
     return (await res.json()) as ApiResponse<T>

@@ -27,9 +27,9 @@ export default function ForgotPassword() {
     }
     setSubmitting(true)
     try {
-      const res = await forgotPassword(email).catch(() => null)
+      await forgotPassword(email).catch(() => null)
       navigate("/auth/check-email", {
-        state: { email, destination: res?.destination ?? email },
+        state: { email },
       })
     } catch (err) {
       const message =

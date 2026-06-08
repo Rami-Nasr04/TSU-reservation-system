@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils"
 
 interface LocationState {
   email?: string
-  destination?: string
 }
 
 function maskEmail(email: string): string {
