@@ -7,6 +7,11 @@ import tailwindcss from "@tailwindcss/vite"
 export default defineConfig({
   plugins: [
 react(), tailwindcss()],
+  // amazon-cognito-identity-js references the Node `global` object, which does
+  // not exist in browsers. Map it to globalThis so the bundle runs in prod.
+  define: {
+    global: "globalThis",
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
