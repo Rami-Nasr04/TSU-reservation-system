@@ -86,7 +86,7 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
   return { user: adaptUser(data), tempPassword: null }
 }
 
-/** Stubbed until Cognito (P10b) — the backend returns 501. */
+/** Updates name / role / active state for a user. */
 export async function patchUser(
   id: string,
   patch: Partial<CreateUserInput> & { active?: boolean },
@@ -96,9 +96,23 @@ export async function patchUser(
     body: JSON.stringify(patch),
   })
   if (!res.success || !res.data) {
-    throw new Error(
-      res.error?.message ?? "Available after auth is wired (final phase).",
-    )
+    throw new Error(res.error?.message ?? "Couldn't update the account.")
   }
   return adaptUser(res.data)
+}
+
+/**
+ * Admin-initiated password reset — for a staffer who's locked out (forgot
+ * password / lost MFA). Returns a fresh temp password for the manager to share;
+ * Cognito does NOT email it. The staffer re-sets it on next sign-in.
+ */
+export async function resetUserPassword(id: string): Promise<string> {
+  const res = await apiFetch<{ tempPassword: string }>(
+    `/users/${id}/reset-password`,
+    { method: "POST" },
+  )
+  if (!res.success || !res.data) {
+    throw new Error(res.error?.message ?? "Couldn't reset the password.")
+  }
+  return res.data.tempPassword
 }

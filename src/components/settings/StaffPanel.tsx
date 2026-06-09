@@ -13,10 +13,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { FilterPills, type FilterPillOption } from "@/components/customers/FilterPills"
 import { initialsOf } from "@/components/customers/format"
-import type { StaffUser } from "@/services/usersService"
+import { patchUser, type StaffUser } from "@/services/usersService"
 import type { UserRole } from "@/contexts/AuthContext"
 import { Toggle } from "./Toggle"
 import { AddStaffModal } from "./AddStaffModal"
+import { EditStaffModal } from "./EditStaffModal"
+import { ResetPasswordDialog } from "./ResetPasswordDialog"
 
 interface StaffPanelProps {
   users: StaffUser[] | null
@@ -42,10 +44,21 @@ const ROLE_LABEL: Record<UserRole, string> = {
   staff: "Staff",
 }
 
+/** Shared row/card action handlers, threaded down from the panel. */
+interface RowActions {
+  onEdit: (user: StaffUser) => void
+  onResetPassword: (user: StaffUser) => void
+  onToggleActive: (user: StaffUser) => void
+  busyToggleId: string | null
+}
+
 export function StaffPanel({ users, isLoading, error, refetch }: StaffPanelProps) {
   const [query, setQuery] = React.useState("")
   const [role, setRole] = React.useState<RoleFilter>("all")
   const [adding, setAdding] = React.useState(false)
+  const [editing, setEditing] = React.useState<StaffUser | null>(null)
+  const [resetting, setResetting] = React.useState<StaffUser | null>(null)
+  const [busyToggleId, setBusyToggleId] = React.useState<string | null>(null)
 
   const source = React.useMemo<StaffUser[]>(() => users ?? [], [users])
 
@@ -63,6 +76,34 @@ export function StaffPanel({ users, isLoading, error, refetch }: StaffPanelProps
 
   const activeCount = source.filter((s) => s.active).length
   const inactiveCount = source.length - activeCount
+
+  const handleToggleActive = React.useCallback(
+    async (user: StaffUser) => {
+      setBusyToggleId(user.id)
+      try {
+        await patchUser(user.id, { active: !user.active })
+        toast.success(user.active ? "Account deactivated" : "Account reactivated")
+        refetch()
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Couldn't update the account.",
+        )
+      } finally {
+        setBusyToggleId(null)
+      }
+    },
+    [refetch],
+  )
+
+  const actions = React.useMemo<RowActions>(
+    () => ({
+      onEdit: setEditing,
+      onResetPassword: setResetting,
+      onToggleActive: handleToggleActive,
+      busyToggleId,
+    }),
+    [handleToggleActive, busyToggleId],
+  )
 
   if (error) {
     return (
@@ -144,14 +185,14 @@ export function StaffPanel({ users, isLoading, error, refetch }: StaffPanelProps
               <span />
             </div>
             {filtered.map((s) => (
-              <StaffRow key={s.id} user={s} />
+              <StaffRow key={s.id} user={s} actions={actions} />
             ))}
           </div>
 
           {/* Mobile cards */}
           <div className="flex flex-col gap-2 sm:hidden">
             {filtered.map((s) => (
-              <StaffCard key={s.id} user={s} />
+              <StaffCard key={s.id} user={s} actions={actions} />
             ))}
           </div>
         </>
@@ -175,6 +216,21 @@ export function StaffPanel({ users, isLoading, error, refetch }: StaffPanelProps
           open
           onClose={() => setAdding(false)}
           onCreated={refetch}
+        />
+      )}
+      {editing && (
+        <EditStaffModal
+          user={editing}
+          open
+          onClose={() => setEditing(null)}
+          onSaved={refetch}
+        />
+      )}
+      {resetting && (
+        <ResetPasswordDialog
+          user={resetting}
+          open
+          onClose={() => setResetting(null)}
         />
       )}
     </div>
@@ -209,11 +265,7 @@ function RoleChip({ role }: { role: UserRole }) {
   )
 }
 
-/** Edit / Reset password / Deactivate — all stubbed until Cognito (P10b). */
-function RowMenu({ user }: { user: StaffUser }) {
-  const stub = () =>
-    toast.info("Available after sign-in accounts are wired (final phase).")
-
+function RowMenu({ user, actions }: { user: StaffUser; actions: RowActions }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -223,11 +275,15 @@ function RowMenu({ user }: { user: StaffUser }) {
         <MoreVertical className="size-3.5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuItem onClick={stub}>Edit</DropdownMenuItem>
-        <DropdownMenuItem onClick={stub}>Reset password</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => actions.onEdit(user)}>
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => actions.onResetPassword(user)}>
+          Reset password
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={stub}
+          onClick={() => actions.onToggleActive(user)}
           className="text-destructive focus:text-destructive"
         >
           {user.active ? "Deactivate" : "Reactivate"}
@@ -245,10 +301,7 @@ function Avatar({ name }: { name: string | null }) {
   )
 }
 
-function StaffRow({ user }: { user: StaffUser }) {
-  const stub = () =>
-    toast.info("Available after sign-in accounts are wired (final phase).")
-
+function StaffRow({ user, actions }: { user: StaffUser; actions: RowActions }) {
   return (
     <div
       className={cn(
@@ -276,21 +329,19 @@ function StaffRow({ user }: { user: StaffUser }) {
       <div className="flex justify-end">
         <Toggle
           on={user.active}
-          onChange={stub}
+          onChange={() => actions.onToggleActive(user)}
+          disabled={actions.busyToggleId === user.id}
           ariaLabel={`${user.name ?? user.email} active`}
         />
       </div>
       <div className="flex justify-end">
-        <RowMenu user={user} />
+        <RowMenu user={user} actions={actions} />
       </div>
     </div>
   )
 }
 
-function StaffCard({ user }: { user: StaffUser }) {
-  const stub = () =>
-    toast.info("Available after sign-in accounts are wired (final phase).")
-
+function StaffCard({ user, actions }: { user: StaffUser; actions: RowActions }) {
   return (
     <div
       className={cn(
@@ -308,7 +359,7 @@ function StaffCard({ user }: { user: StaffUser }) {
             {user.email}
           </div>
         </div>
-        <RowMenu user={user} />
+        <RowMenu user={user} actions={actions} />
       </div>
       <div className="mt-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -319,7 +370,8 @@ function StaffCard({ user }: { user: StaffUser }) {
         </div>
         <Toggle
           on={user.active}
-          onChange={stub}
+          onChange={() => actions.onToggleActive(user)}
+          disabled={actions.busyToggleId === user.id}
           ariaLabel={`${user.name ?? user.email} active`}
         />
       </div>
