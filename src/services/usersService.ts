@@ -55,21 +55,35 @@ export async function listUsers(filters: UserFilters = {}): Promise<StaffUser[]>
   return res.data.map(adaptUser)
 }
 
+export interface CreateUserResult {
+  user: StaffUser
+  /**
+   * Temporary password to hand to the new staffer. Cognito also emails it.
+   * `null` when the backend emailed a password it didn't return (pre-hybrid
+   * deploy) — the modal falls back to an "invite emailed" message.
+   */
+  tempPassword: string | null
+}
+
 /**
- * Stubbed until Cognito (P10b) — the backend returns 501. The error message is
- * surfaced to the user as a toast from the Add staff modal.
+ * Creates the Cognito user + staff row. Returns the temp password so the
+ * manager can share it in person (it's also emailed to the staffer).
  */
-export async function createUser(input: CreateUserInput): Promise<StaffUser> {
-  const res = await apiFetch<UserRow>("/users", {
-    method: "POST",
-    body: JSON.stringify(input),
-  })
+export async function createUser(input: CreateUserInput): Promise<CreateUserResult> {
+  const res = await apiFetch<{ user: UserRow; tempPassword: string | null } | UserRow>(
+    "/users",
+    { method: "POST", body: JSON.stringify(input) },
+  )
   if (!res.success || !res.data) {
-    throw new Error(
-      res.error?.message ?? "Available after auth is wired (final phase).",
-    )
+    throw new Error(res.error?.message ?? "Couldn't create the account.")
   }
-  return adaptUser(res.data)
+  // New contract: { user, tempPassword }. Tolerate the older flat UserRow shape
+  // until the backend hybrid deploy lands (then tempPassword is always present).
+  const data = res.data
+  if ("user" in data) {
+    return { user: adaptUser(data.user), tempPassword: data.tempPassword ?? null }
+  }
+  return { user: adaptUser(data), tempPassword: null }
 }
 
 /** Stubbed until Cognito (P10b) — the backend returns 501. */

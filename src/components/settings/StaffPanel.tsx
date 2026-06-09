@@ -170,7 +170,13 @@ export function StaffPanel({ users, isLoading, error, refetch }: StaffPanelProps
         + Add staff
       </button>
 
-      {adding && <AddStaffModal open onClose={() => setAdding(false)} />}
+      {adding && (
+        <AddStaffModal
+          open
+          onClose={() => setAdding(false)}
+          onCreated={refetch}
+        />
+      )}
     </div>
   )
 }
