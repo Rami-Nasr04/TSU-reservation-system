@@ -275,7 +275,7 @@ export function bucketShift(timeHHmm: string): ShiftId {
   const [h, m] = timeHHmm.split(":").map(Number)
   const mins = h * 60 + m
   if (mins < 14 * 60) return "lunch"
-  if (mins < 21 * 60) return "afternoon"
+  if (mins < 19 * 60) return "afternoon"
   return "late"
 }
 
@@ -351,8 +351,8 @@ function adaptToDayFeed(date: string, rows: ReservationRow[]): DayFeed {
 
   const shifts: ShiftSummary[] = [
     { id: "lunch",     label: "Lunch",       hours: "12–2pm",     count: byShift.lunch },
-    { id: "afternoon", label: "Afternoon",   hours: "2–9pm",      count: byShift.afternoon },
-    { id: "late",      label: "Late Dinner", hours: "9–11:30pm",  count: byShift.late },
+    { id: "afternoon", label: "Afternoon",   hours: "2–7pm",      count: byShift.afternoon },
+    { id: "late",      label: "Late Dinner", hours: "7pm–12am",  count: byShift.late },
     { id: "all",       label: "All",         hours: null,         count: reservations.length },
   ]
 
@@ -429,8 +429,8 @@ async function mockGetDay(date: string): Promise<DayFeed> {
 
   const shifts: ShiftSummary[] = [
     { id: "lunch",     label: "Lunch",       hours: "12–2pm",     count: byShift.lunch },
-    { id: "afternoon", label: "Afternoon",   hours: "2–9pm",      count: byShift.afternoon },
-    { id: "late",      label: "Late Dinner", hours: "9–11:30pm",  count: byShift.late },
+    { id: "afternoon", label: "Afternoon",   hours: "2–7pm",      count: byShift.afternoon },
+    { id: "late",      label: "Late Dinner", hours: "7pm–12am",  count: byShift.late },
     { id: "all",       label: "All",         hours: null,         count: reservations.length },
   ]
 

@@ -293,8 +293,8 @@ export default function DayBoard() {
         shifts={
           feed?.shifts ?? [
             { id: "lunch", label: "Lunch", hours: "12–2pm", count: 0 },
-            { id: "afternoon", label: "Afternoon", hours: "2–9pm", count: 0 },
-            { id: "late", label: "Late Dinner", hours: "9–11:30pm", count: 0 },
+            { id: "afternoon", label: "Afternoon", hours: "2–7pm", count: 0 },
+            { id: "late", label: "Late Dinner", hours: "7pm–12am", count: 0 },
             { id: "all", label: "All", hours: null, count: 0 },
           ]
         }
