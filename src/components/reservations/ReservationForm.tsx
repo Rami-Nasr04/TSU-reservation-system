@@ -21,6 +21,7 @@ import "react-day-picker/style.css"
 
 import { cn } from "@/lib/utils"
 import { formatDateISO, isPastDayLocked, parseDateISO, reservationTimeSlots } from "@/lib/dates"
+import { usePopoverScrollFix } from "@/lib/popoverScroll"
 import { checkMergeAvailability } from "@/lib/reservationConflicts"
 import { bucketShift } from "@/services/reservationsService"
 import { lookupCustomer } from "@/services/customersService"
@@ -777,6 +778,7 @@ interface TimeFieldProps {
 
 function TimeField({ value, onChange, slots, shift, disabled }: TimeFieldProps) {
   const [open, setOpen] = React.useState(false)
+  const scrollFix = usePopoverScrollFix()
   return (
     <div>
       <span className={LABEL}>Start time</span>
@@ -803,6 +805,7 @@ function TimeField({ value, onChange, slots, shift, disabled }: TimeFieldProps) 
         </PopoverPrimitive.Trigger>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Content
+            ref={scrollFix}
             sideOffset={6}
             align="start"
             className={cn(
@@ -1140,6 +1143,8 @@ function TableField({
     }
   }, [bySection])
 
+  const scrollFix = usePopoverScrollFix()
+
   return (
     <div>
       <span className={LABEL}>Table</span>
@@ -1172,6 +1177,7 @@ function TableField({
         </PopoverPrimitive.Trigger>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Content
+            ref={scrollFix}
             sideOffset={6}
             align="start"
             className={cn(
