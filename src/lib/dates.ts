@@ -152,12 +152,12 @@ export function nowRounded15(): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
 }
 
-/** Reservation time slots from 12:00 to 22:30 in 15-min steps. */
+/** Reservation time slots from 12:00 to 23:00 in 15-min steps (last seating 11:00pm). */
 export function reservationTimeSlots(): string[] {
   const slots: string[] = []
-  for (let h = 12; h <= 22; h++) {
+  for (let h = 12; h <= 23; h++) {
     for (const m of [0, 15, 30, 45]) {
-      if (h === 22 && m > 30) break
+      if (h === 23 && m > 0) break
       slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`)
     }
   }
