@@ -8,19 +8,21 @@ export type AvailabilityResult =
   | { ok: false; reason: string }
 
 /**
- * Frontend pre-flight check before sending a merge reservation. The backend
- * exclusion constraint is the authoritative gate; this just surfaces a friendly
- * toast before the user submits and the round-trip rejects with a raw SQL error.
+ * Frontend pre-flight check before sending a merge reservation. There is NO
+ * backend overlap guard (no exclusion constraint ever existed), so this is the
+ * only overlap check in the system — it surfaces a friendly toast before a merge
+ * would double-book a table.
  *
  * Rules:
  *  - Operational-past dates: skip — past-day edits go through the locked branch.
+ *  - Turn-bearing rows (the late-dinner grid) are exempt — turns are host-managed
+ *    and may share a table/turn freely.
  *  - For each sibling table in the merge set, scan the day feed for any
  *    reservation already holding it (excluding the row being edited):
  *      * If `seated` and the start time is within {@link IMMINENT_BUFFER_MIN}
  *        minutes of `startTime`, that seat is hot — reject.
  *      * If `booked` at the same time, reject (overlap).
- *      * If `seated` but the new start is well past the buffer, allow — the
- *        backend exclusion constraint still has the final say.
+ *      * If `seated` but the new start is well past the buffer, allow.
  *  - Completed / cancelled / noshow rows never block (cells are free).
  */
 export function checkMergeAvailability(
@@ -39,6 +41,7 @@ export function checkMergeAvailability(
 
   for (const r of feed.reservations) {
     if (r.id === excludeReservationId) continue
+    if (r.turn != null) continue // turn rows are host-managed — never block
     if (r.status !== "seated" && r.status !== "booked") continue
     const overlap = r.tables.find((t) => tableSet.has(t))
     if (!overlap) continue
