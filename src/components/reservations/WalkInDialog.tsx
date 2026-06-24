@@ -28,6 +28,8 @@ interface WalkInDialogProps {
   tableId: string
   /** Day feed — used to flag currently-seated siblings as Occupied in merge picker. */
   feed?: DayFeed | null
+  /** Late-dinner seating turn from the tapped grid cell (null elsewhere). */
+  turn?: 1 | 2 | 3 | null
   onSave: (r: Reservation, input: ReservationInput) => Promise<void>
 }
 
@@ -37,6 +39,7 @@ export function WalkInDialog({
   date,
   tableId,
   feed,
+  turn,
   onSave,
 }: WalkInDialogProps) {
   const { getTable, getMergeableSiblings } = useFloorTables()
@@ -88,6 +91,7 @@ export function WalkInDialog({
       tables,
       status: "seated",
       shift: bucketShift(time),
+      turn: turn ?? null,
       isWalkIn: true,
       vip: false,
       notes: notes.trim() || undefined,
@@ -103,6 +107,7 @@ export function WalkInDialog({
       pax,
       status: "seated",
       is_walk_in: true,
+      turn: turn ?? null,
       occasion: null,
       notes: notes.trim() || null,
       total_bill: null,
