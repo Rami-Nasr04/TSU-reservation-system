@@ -168,6 +168,8 @@ export interface Reservation {
   tables: string[]
   status: ReservationStatus
   shift: ShiftId
+  /** Late-dinner seating turn (1=7–9, 2=8–10, 3=9–11) — only set for Indoor + late dinner. */
+  turn?: 1 | 2 | 3 | null
   isWalkIn: boolean
   vip: boolean
   /** Customer FK — surfaced so the edit modal can patch the right customer. */
@@ -208,6 +210,7 @@ export interface ReservationRow {
   amount_paid: number | null
   tip: number | null
   shift: ShiftId
+  turn: 1 | 2 | 3 | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -234,6 +237,8 @@ export interface ReservationInput {
   total_bill: number | null
   amount_paid: number | null
   tables: string[]
+  /** Late-dinner seating turn — null unless Indoor + late dinner. */
+  turn?: 1 | 2 | 3 | null
 }
 
 export interface ShiftSummary {
@@ -320,6 +325,7 @@ function adaptRow(row: ReservationRow): Reservation {
     tables: row.table_labels,
     status: row.status,
     shift: row.shift,
+    turn: row.turn,
     isWalkIn: row.is_walk_in,
     vip: row.vip ?? false,
     customerId: row.customer_id,
@@ -513,6 +519,7 @@ function reservationBody(
     pax: input.pax,
     status: input.status,
     is_walk_in: input.is_walk_in,
+    turn: input.turn ?? null,
     occasion: input.occasion,
     notes: input.notes,
     total_bill: input.total_bill,
@@ -523,9 +530,9 @@ function reservationBody(
   return body
 }
 
-// The backend maps Postgres 23P01 (exclusion constraint) → 409 CONFLICT with a
-// code-only payload, so we own the user-facing copy here rather than surfacing
-// raw SQL through the toast.
+// There is no backend overlap guard (no exclusion constraint ever existed); this
+// CONFLICT copy is defensive only (e.g. a future unique violation). We own the
+// user-facing wording here rather than surfacing a raw code through the toast.
 function reservationMutationMessage(
   code: string | undefined,
   fallback: string,
