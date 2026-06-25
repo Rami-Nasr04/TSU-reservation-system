@@ -7,7 +7,6 @@ import {
   Clock,
   Mail,
   Minus,
-  Phone,
   Plus,
   Star,
   Trash2,
@@ -36,6 +35,7 @@ import type {
 } from "@/services/reservationsService"
 import { useFloorTables, type FloorTable } from "@/contexts/TablesContext"
 import { DialogOverlay, DialogTitle } from "@/components/ui/dialog"
+import { PhoneField } from "@/components/ui/PhoneField"
 import { MergeField } from "./MergeField"
 
 // ---------------------------------------------------------------------------
@@ -185,7 +185,7 @@ export function ReservationForm({
   React.useEffect(() => {
     if (isEdit) return
     const timer = setTimeout(() => {
-      const normalized = phone.replace(/[\s\-.()]/g, "")
+      const normalized = phone.replace(/\D/g, "")
       if (normalized.length < 8) {
         setLookupHit(null)
         return
@@ -1034,14 +1034,7 @@ function CustomerFields({
             disabled={disabled}
           />
         </div>
-        <IconInput
-          icon={<Phone className="size-[13px]" strokeWidth={1.4} />}
-          value={phone}
-          onChange={onPhone}
-          placeholder="+961 …"
-          type="tel"
-          disabled={disabled}
-        />
+        <PhoneField value={phone} onChange={onPhone} disabled={disabled} />
       </div>
       <div className="mt-2.5">
         <IconInput
