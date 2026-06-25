@@ -1,6 +1,7 @@
 import { ChevronRight, Star } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { formatPhone } from "@/lib/phone"
 import type { CustomerWithStats } from "@/services/customersService"
 import { CustomerAvatar } from "./CustomerAvatar"
 import { CUSTOMER_GRID, displayName, formatDayLabel, formatMoney } from "./format"
@@ -35,7 +36,7 @@ export function CustomerRow({
             {displayName(c)}
           </span>
           <span className="mt-0.5 block truncate text-[11.5px] text-brand-ink-soft">
-            {c.phone ?? "No phone"}
+            {c.phone ? formatPhone(c.phone) : "No phone"}
           </span>
         </span>
         <span className="text-right">
@@ -80,7 +81,7 @@ export function CustomerRow({
         </span>
       </span>
       <span className="min-w-0 text-[11.5px] text-brand-ink-soft">
-        <span className="block truncate">{c.phone ?? "—"}</span>
+        <span className="block truncate">{c.phone ? formatPhone(c.phone) : "—"}</span>
         <span className="mt-0.5 block truncate">{c.email ?? "—"}</span>
       </span>
       <span className="text-right text-[13px] tabular-nums text-foreground">
