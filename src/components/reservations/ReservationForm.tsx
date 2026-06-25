@@ -22,6 +22,7 @@ import "react-day-picker/style.css"
 import { cn } from "@/lib/utils"
 import { formatDateISO, isPastDayLocked, parseDateISO, reservationTimeSlots } from "@/lib/dates"
 import { usePopoverScrollFix } from "@/lib/popoverScroll"
+import { usesTurns, defaultTurnForTime, turnsForShift, turnStartTime, type TurnId } from "@/lib/turns"
 import { checkMergeAvailability } from "@/lib/reservationConflicts"
 import { bucketShift } from "@/services/reservationsService"
 import { lookupCustomer } from "@/services/customersService"
@@ -31,6 +32,7 @@ import type {
   ReservationInput,
   ReservationOccasion,
   ReservationStatus,
+  ShiftId,
 } from "@/services/reservationsService"
 import { useFloorTables, type FloorTable } from "@/contexts/TablesContext"
 import { DialogOverlay, DialogTitle } from "@/components/ui/dialog"
@@ -47,6 +49,8 @@ interface ReservationFormProps {
   /** Day feed — used to keep yesterday editable while a seated row is still active. */
   feed?: DayFeed | null
   initialTableId?: string
+  /** Seating turn from a tapped grid cell — seeds the turn picker for a new reservation. */
+  initialTurn?: 1 | 2 | 3 | null
   reservation?: Reservation
   /** Staff role gate — disables every input/transition the same way a past-day lock does. */
   readOnly?: boolean
@@ -119,13 +123,14 @@ export function ReservationForm({
   date: propDate,
   feed,
   initialTableId,
+  initialTurn,
   reservation,
   readOnly = false,
   onSave,
   onCheckout,
 }: ReservationFormProps) {
   const isEdit = Boolean(reservation)
-  const { getMergeableSiblings } = useFloorTables()
+  const { getMergeableSiblings, getTable } = useFloorTables()
   const [date, setDate] = React.useState<string>(propDate)
 
   // ---- form state ---------------------------------------------------------
@@ -139,13 +144,20 @@ export function ReservationForm({
   const [phone, setPhone] = React.useState<string>(reservation?.customerPhone ?? "")
   const [email, setEmail] = React.useState<string>(reservation?.customerEmail ?? "")
   const [vip, setVip] = React.useState<boolean>(reservation?.vip ?? false)
-  const [time, setTime] = React.useState<string>(reservation?.time ?? DEFAULT_TIME)
+  // A tapped grid cell supplies a turn; seed the start time inside that turn's
+  // window so the late-dinner turn picker shows and the seeded turn is honored.
+  const [time, setTime] = React.useState<string>(
+    reservation?.time ?? (initialTurn ? turnStartTime(initialTurn) : DEFAULT_TIME),
+  )
   const [pax, setPax] = React.useState<number>(reservation?.pax ?? 2)
   const [tables, setTables] = React.useState<string[]>(initialTables)
   const [occasion, setOccasion] = React.useState<ReservationOccasion | "">(
     reservation?.occasion ?? "",
   )
   const [notes, setNotes] = React.useState<string>(reservation?.notes ?? "")
+  const [turnOverride, setTurnOverride] = React.useState<TurnId | null>(
+    reservation?.turn ?? initialTurn ?? null,
+  )
   const [nameInvalid, setNameInvalid] = React.useState(false)
   const [tableInvalid, setTableInvalid] = React.useState(false)
   const [lookupHit, setLookupHit] = React.useState<{
@@ -204,6 +216,11 @@ export function ReservationForm({
     [primaryTableId, getMergeableSiblings],
   )
   const computedShift = bucketShift(time)
+  const primarySection = primaryTableId ? getTable(primaryTableId)?.section : undefined
+  const showTurnPicker = primarySection != null && usesTurns(primarySection, computedShift)
+  const effectiveTurn: TurnId | null = showTurnPicker
+    ? turnOverride ?? defaultTurnForTime(computedShift, time)
+    : null
   const status = reservation?.status
 
   // Past-day-locked and staff-readOnly share the same view-only treatment.
@@ -234,6 +251,7 @@ export function ReservationForm({
       tables: finalTables,
       status: statusOverride ?? reservation?.status ?? "booked",
       shift: bucketShift(time),
+      turn: effectiveTurn,
       isWalkIn: reservation?.isWalkIn ?? false,
       vip,
       occasion: occasion === "" ? undefined : occasion,
@@ -264,6 +282,7 @@ export function ReservationForm({
       pax,
       status: statusOverride ?? reservation?.status ?? "booked",
       is_walk_in: reservation?.isWalkIn ?? false,
+      turn: effectiveTurn,
       occasion: occasion === "" ? null : occasion,
       notes: notes.trim() || null,
       total_bill: reservation?.totalBill ?? null,
@@ -481,6 +500,16 @@ export function ReservationForm({
                   selected={tables}
                   onChange={setTables}
                   siblings={mergeable}
+                  disabled={isLocked}
+                />
+              )}
+
+              {/* Seating turn — Indoor + late dinner only */}
+              {showTurnPicker && (
+                <TurnSegmented
+                  shift={computedShift}
+                  value={effectiveTurn}
+                  onChange={setTurnOverride}
                   disabled={isLocked}
                 />
               )}
@@ -1251,6 +1280,57 @@ function TableGroup({
           </button>
         ))
       )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Seating turn segmented
+// ---------------------------------------------------------------------------
+
+function TurnSegmented({
+  shift,
+  value,
+  onChange,
+  disabled,
+}: {
+  shift: ShiftId
+  value: TurnId | null
+  onChange: (v: TurnId) => void
+  disabled?: boolean
+}) {
+  const turns = turnsForShift(shift)
+  return (
+    <div>
+      <span className={LABEL}>Seating turn</span>
+      <div className="mt-[7px] -mx-1 overflow-x-auto px-1">
+        <div
+          className={cn(
+            "inline-flex rounded-[3px] bg-foreground/[0.04] p-[3px]",
+            disabled && "opacity-60",
+          )}
+        >
+          {turns.map((t) => {
+            const active = value === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange(t.id)}
+                className={cn(
+                  "whitespace-nowrap rounded-[2px] px-3.5 py-1.5 text-[11px] tracking-[0.16em] uppercase transition-all duration-150",
+                  active
+                    ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                    : "font-normal text-brand-ink-soft hover:text-foreground",
+                )}
+              >
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }

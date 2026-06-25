@@ -15,6 +15,7 @@ import { useFloorTables } from "@/contexts/TablesContext"
 import { formatDateISO, isPastDayLocked, isToday, parseDateISO, todayParts } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import {
+  bucketShift,
   createReservation,
   updateReservation,
 } from "@/services/reservationsService"
@@ -30,8 +31,8 @@ import type {
 
 type ModalState =
   | { kind: "none" }
-  | { kind: "walkin"; tableId: string }
-  | { kind: "reservation"; tableId?: string; reservation?: Reservation }
+  | { kind: "walkin"; tableId: string; turn: 1 | 2 | 3 | null }
+  | { kind: "reservation"; tableId?: string; turn?: 1 | 2 | 3 | null; reservation?: Reservation }
   | { kind: "checkout"; reservation: Reservation }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +95,14 @@ export default function ServiceMode() {
 
   const feed = useMergedFeed(data, localReservations)
 
+  // Service Mode is the live "now" board — derive the active shift from the wall
+  // clock so the Indoor turn grid surfaces during late dinner (and lunch/afternoon
+  // indoor bookings stay on the normal floor view).
+  const now = new Date()
+  const liveShift = bucketShift(
+    `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+  )
+
   function openModal(next: Exclude<ModalState, { kind: "none" }>) {
     setModalRevision((r) => r + 1)
     setModal(next)
@@ -103,7 +112,7 @@ export default function ServiceMode() {
     setModal({ kind: "none" })
   }
 
-  function handleTableClick(tableId: string, resv?: Reservation) {
+  function handleTableClick(tableId: string, turn: 1 | 2 | 3 | null, resv?: Reservation) {
     const isLive = resv && (resv.status === "booked" || resv.status === "seated")
     if (isLive) {
       openModal({ kind: "reservation", tableId, reservation: resv })
@@ -115,10 +124,10 @@ export default function ServiceMode() {
       return
     }
     if (isToday(date)) {
-      openModal({ kind: "walkin", tableId })
+      openModal({ kind: "walkin", tableId, turn })
       return
     }
-    openModal({ kind: "reservation", tableId })
+    openModal({ kind: "reservation", tableId, turn })
   }
 
   function handleReservationClick(resv: Reservation) {
@@ -204,6 +213,7 @@ export default function ServiceMode() {
             >
               <FloorView
                 reservations={feed.reservations}
+                activeShift={liveShift}
                 onTableClick={handleTableClick}
               />
             </section>
@@ -235,6 +245,7 @@ export default function ServiceMode() {
           onClose={closeModal}
           date={date}
           tableId={modal.tableId}
+          turn={modal.turn}
           feed={feed}
           onSave={handleSave}
         />
@@ -247,6 +258,7 @@ export default function ServiceMode() {
           date={date}
           feed={feed}
           initialTableId={modal.tableId}
+          initialTurn={modal.turn}
           reservation={modal.reservation}
           onSave={handleSave}
           onCheckout={handleCheckout}

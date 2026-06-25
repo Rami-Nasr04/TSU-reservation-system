@@ -110,4 +110,14 @@ describe("checkMergeAvailability", () => {
       checkMergeAvailability("2026-05-20", "19:00", ["20", "22"], feed, at1500),
     ).toEqual({ ok: true })
   })
+
+  it("does not block a turn-bearing sibling (host discretion — turns own overlap)", () => {
+    const feed = makeFeed([
+      makeReservation({ id: "r1", status: "booked", tables: ["22"], time: "19:00", turn: 1 }),
+    ])
+    // Same table + same start time would normally reject, but turn rows are exempt.
+    expect(
+      checkMergeAvailability(today, "19:00", ["20", "22"], feed, at1500),
+    ).toEqual({ ok: true })
+  })
 })
