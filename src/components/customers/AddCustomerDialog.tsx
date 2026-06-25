@@ -19,6 +19,7 @@ import {
   upsertCustomer,
   type CustomerWithStats,
 } from "@/services/customersService"
+import { PhoneField } from "@/components/ui/PhoneField"
 
 interface AddCustomerDialogProps {
   open: boolean
@@ -101,13 +102,7 @@ export function AddCustomerDialog({
               <Label htmlFor="cust-phone" className={fieldLabel}>
                 Phone
               </Label>
-              <Input
-                id="cust-phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+961 …"
-                inputMode="tel"
-              />
+              <PhoneField value={phone} onChange={setPhone} disabled={saving} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cust-email" className={fieldLabel}>
