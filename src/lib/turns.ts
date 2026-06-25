@@ -47,6 +47,16 @@ export function turnLabelSuffix(turn: TurnId): "" | "a" | "b" {
   return turn === 1 ? "" : turn === 2 ? "a" : "b"
 }
 
+/**
+ * Start time ("HH:mm") of a turn — used to seed the reservation form's time when a
+ * grid cell is tapped, so the start time lands inside the tapped turn's window.
+ */
+export function turnStartTime(turn: TurnId): string {
+  const def = (SHIFT_TURNS.late ?? []).find((t) => t.id === turn)
+  const min = def ? def.startMin : 19 * 60
+  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`
+}
+
 /** Frontend rule: turns apply only to the Indoor section during Late dinner. */
 export function usesTurns(section: TableSection, shift: ShiftId): boolean {
   return section === "indoor" && shift === "late"

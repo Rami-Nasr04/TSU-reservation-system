@@ -22,7 +22,7 @@ import "react-day-picker/style.css"
 import { cn } from "@/lib/utils"
 import { formatDateISO, isPastDayLocked, parseDateISO, reservationTimeSlots } from "@/lib/dates"
 import { usePopoverScrollFix } from "@/lib/popoverScroll"
-import { usesTurns, defaultTurnForTime, turnsForShift, type TurnId } from "@/lib/turns"
+import { usesTurns, defaultTurnForTime, turnsForShift, turnStartTime, type TurnId } from "@/lib/turns"
 import { checkMergeAvailability } from "@/lib/reservationConflicts"
 import { bucketShift } from "@/services/reservationsService"
 import { lookupCustomer } from "@/services/customersService"
@@ -144,7 +144,11 @@ export function ReservationForm({
   const [phone, setPhone] = React.useState<string>(reservation?.customerPhone ?? "")
   const [email, setEmail] = React.useState<string>(reservation?.customerEmail ?? "")
   const [vip, setVip] = React.useState<boolean>(reservation?.vip ?? false)
-  const [time, setTime] = React.useState<string>(reservation?.time ?? DEFAULT_TIME)
+  // A tapped grid cell supplies a turn; seed the start time inside that turn's
+  // window so the late-dinner turn picker shows and the seeded turn is honored.
+  const [time, setTime] = React.useState<string>(
+    reservation?.time ?? (initialTurn ? turnStartTime(initialTurn) : DEFAULT_TIME),
+  )
   const [pax, setPax] = React.useState<number>(reservation?.pax ?? 2)
   const [tables, setTables] = React.useState<string[]>(initialTables)
   const [occasion, setOccasion] = React.useState<ReservationOccasion | "">(
