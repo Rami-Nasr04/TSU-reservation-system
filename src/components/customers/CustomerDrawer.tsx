@@ -3,6 +3,7 @@ import { Mail, Phone, Plus, Star, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
+import { formatPhone } from "@/lib/phone"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useCustomerHistory } from "@/hooks/useCustomerHistory"
@@ -92,7 +93,7 @@ export function CustomerDrawer({
             <div className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[11.5px] text-brand-ink-soft">
               <span className="inline-flex items-center gap-1.5">
                 <Phone className="size-3 text-brand-ink-mute" />
-                {c.phone ?? "No phone"}
+                {c.phone ? formatPhone(c.phone) : "No phone"}
               </span>
               <span className="inline-flex min-w-0 items-center gap-1.5">
                 <Mail className="size-3 shrink-0 text-brand-ink-mute" />
