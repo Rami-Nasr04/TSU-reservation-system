@@ -5,14 +5,19 @@ import { SectionToggle, type FloorViewSection } from "./SectionToggle"
 import { StatusLegend } from "./StatusLegend"
 import { BarSection } from "./BarSection"
 import { TablesSection } from "./TablesSection"
+import { TurnGrid } from "./TurnGrid"
+import type { ActiveShift } from "./ShiftTabs"
+import { usesTurns } from "@/lib/turns"
 
 interface FloorViewProps {
   reservations: Reservation[]
   isMobile?: boolean
+  /** Active shift tab — drives whether the Indoor slot shows the late-dinner turn grid. */
+  activeShift: ActiveShift
   onTableClick: (tableId: string, turn: 1 | 2 | 3 | null, resv?: Reservation) => void
 }
 
-export function FloorView({ reservations, isMobile, onTableClick }: FloorViewProps) {
+export function FloorView({ reservations, isMobile, activeShift, onTableClick }: FloorViewProps) {
   const { bySection } = useFloorTables()
   const [section, setSection] = React.useState<FloorViewSection>("indoor")
 
@@ -23,6 +28,9 @@ export function FloorView({ reservations, isMobile, onTableClick }: FloorViewPro
   const showBar = section === "bar" || section === "all"
   const showIndoor = section === "indoor" || section === "all"
   const showTerrace = section === "terrace" || section === "all"
+
+  // The Indoor slot becomes the turn grid only on the Late-dinner shift.
+  const indoorUsesTurns = activeShift !== "all" && usesTurns("indoor", activeShift)
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3.5">
@@ -41,14 +49,23 @@ export function FloorView({ reservations, isMobile, onTableClick }: FloorViewPro
           )}
           {showIndoor && (
             <div className={section === "all" && showBar ? "border-t border-hair pt-6" : undefined}>
-              <TablesSection
-                title="Indoor"
-                subtitle={`${indoor.length} tables · main dining room`}
-                tables={indoor}
-                reservations={reservations}
-                isMobile={isMobile}
-                onTableClick={onTableClick}
-              />
+              {indoorUsesTurns ? (
+                <TurnGrid
+                  tables={indoor}
+                  reservations={reservations}
+                  isMobile={isMobile}
+                  onTableClick={onTableClick}
+                />
+              ) : (
+                <TablesSection
+                  title="Indoor"
+                  subtitle={`${indoor.length} tables · main dining room`}
+                  tables={indoor}
+                  reservations={reservations}
+                  isMobile={isMobile}
+                  onTableClick={onTableClick}
+                />
+              )}
             </div>
           )}
           {showTerrace && (

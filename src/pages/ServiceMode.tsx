@@ -15,6 +15,7 @@ import { useFloorTables } from "@/contexts/TablesContext"
 import { formatDateISO, isPastDayLocked, isToday, parseDateISO, todayParts } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import {
+  bucketShift,
   createReservation,
   updateReservation,
 } from "@/services/reservationsService"
@@ -93,6 +94,14 @@ export default function ServiceMode() {
   const [localReservations, setLocalReservations] = React.useState<Reservation[]>([])
 
   const feed = useMergedFeed(data, localReservations)
+
+  // Service Mode is the live "now" board — derive the active shift from the wall
+  // clock so the Indoor turn grid surfaces during late dinner (and lunch/afternoon
+  // indoor bookings stay on the normal floor view).
+  const now = new Date()
+  const liveShift = bucketShift(
+    `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+  )
 
   function openModal(next: Exclude<ModalState, { kind: "none" }>) {
     setModalRevision((r) => r + 1)
@@ -204,6 +213,7 @@ export default function ServiceMode() {
             >
               <FloorView
                 reservations={feed.reservations}
+                activeShift={liveShift}
                 onTableClick={handleTableClick}
               />
             </section>

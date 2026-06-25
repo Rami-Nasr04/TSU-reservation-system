@@ -356,6 +356,7 @@ export default function DayBoard() {
               <div className="min-h-0 rounded-[3px] border border-hair bg-card p-4 lg:p-5">
                 <FloorView
                   reservations={feed.reservations}
+                  activeShift={activeShift}
                   onTableClick={handleTableClick}
                 />
               </div>
@@ -444,6 +445,7 @@ function MobileBody({
         <FloorView
           reservations={feed.reservations}
           isMobile
+          activeShift={activeShift}
           onTableClick={onTableClick}
         />
       </main>
