@@ -5,7 +5,7 @@ import { deriveCellState, type CellState } from "./cellState"
 interface BarSeatProps {
   seatId: string
   reservations: Reservation[]
-  onTableClick: (tableId: string, resv?: Reservation) => void
+  onTableClick: (tableId: string, turn: 1 | 2 | 3 | null, resv?: Reservation) => void
 }
 
 export function BarSeat({ seatId, reservations, onTableClick }: BarSeatProps) {
@@ -21,7 +21,7 @@ export function BarSeat({ seatId, reservations, onTableClick }: BarSeatProps) {
   return (
     <button
       type="button"
-      onClick={() => onTableClick(seatId, resv)}
+      onClick={() => onTableClick(seatId, null, resv)}
       title={`Bar ${seatId}${resv ? ` · ${resv.time} ${resv.name}` : ""}`}
       className={cn(
         "relative inline-flex size-11 items-center justify-center rounded-full",

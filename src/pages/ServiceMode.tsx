@@ -30,8 +30,8 @@ import type {
 
 type ModalState =
   | { kind: "none" }
-  | { kind: "walkin"; tableId: string }
-  | { kind: "reservation"; tableId?: string; reservation?: Reservation }
+  | { kind: "walkin"; tableId: string; turn: 1 | 2 | 3 | null }
+  | { kind: "reservation"; tableId?: string; turn?: 1 | 2 | 3 | null; reservation?: Reservation }
   | { kind: "checkout"; reservation: Reservation }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +103,7 @@ export default function ServiceMode() {
     setModal({ kind: "none" })
   }
 
-  function handleTableClick(tableId: string, resv?: Reservation) {
+  function handleTableClick(tableId: string, turn: 1 | 2 | 3 | null, resv?: Reservation) {
     const isLive = resv && (resv.status === "booked" || resv.status === "seated")
     if (isLive) {
       openModal({ kind: "reservation", tableId, reservation: resv })
@@ -115,10 +115,10 @@ export default function ServiceMode() {
       return
     }
     if (isToday(date)) {
-      openModal({ kind: "walkin", tableId })
+      openModal({ kind: "walkin", tableId, turn })
       return
     }
-    openModal({ kind: "reservation", tableId })
+    openModal({ kind: "reservation", tableId, turn })
   }
 
   function handleReservationClick(resv: Reservation) {
@@ -235,6 +235,7 @@ export default function ServiceMode() {
           onClose={closeModal}
           date={date}
           tableId={modal.tableId}
+          turn={modal.turn}
           feed={feed}
           onSave={handleSave}
         />
@@ -247,6 +248,7 @@ export default function ServiceMode() {
           date={date}
           feed={feed}
           initialTableId={modal.tableId}
+          initialTurn={modal.turn}
           reservation={modal.reservation}
           onSave={handleSave}
           onCheckout={handleCheckout}

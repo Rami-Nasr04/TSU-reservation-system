@@ -5,7 +5,7 @@ import type { Reservation } from "@/services/reservationsService"
 interface BarSectionProps {
   tables: FloorTable[]
   reservations: Reservation[]
-  onTableClick: (tableId: string, resv?: Reservation) => void
+  onTableClick: (tableId: string, turn: 1 | 2 | 3 | null, resv?: Reservation) => void
 }
 
 export function BarSection({ tables, reservations, onTableClick }: BarSectionProps) {

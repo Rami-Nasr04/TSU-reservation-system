@@ -49,6 +49,8 @@ interface ReservationFormProps {
   /** Day feed — used to keep yesterday editable while a seated row is still active. */
   feed?: DayFeed | null
   initialTableId?: string
+  /** Seating turn from a tapped grid cell — seeds the turn picker for a new reservation. */
+  initialTurn?: 1 | 2 | 3 | null
   reservation?: Reservation
   /** Staff role gate — disables every input/transition the same way a past-day lock does. */
   readOnly?: boolean
@@ -121,6 +123,7 @@ export function ReservationForm({
   date: propDate,
   feed,
   initialTableId,
+  initialTurn,
   reservation,
   readOnly = false,
   onSave,
@@ -149,7 +152,7 @@ export function ReservationForm({
   )
   const [notes, setNotes] = React.useState<string>(reservation?.notes ?? "")
   const [turnOverride, setTurnOverride] = React.useState<TurnId | null>(
-    reservation?.turn ?? null,
+    reservation?.turn ?? initialTurn ?? null,
   )
   const [nameInvalid, setNameInvalid] = React.useState(false)
   const [tableInvalid, setTableInvalid] = React.useState(false)

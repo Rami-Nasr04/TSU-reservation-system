@@ -9,7 +9,7 @@ import { TablesSection } from "./TablesSection"
 interface FloorViewProps {
   reservations: Reservation[]
   isMobile?: boolean
-  onTableClick: (tableId: string, resv?: Reservation) => void
+  onTableClick: (tableId: string, turn: 1 | 2 | 3 | null, resv?: Reservation) => void
 }
 
 export function FloorView({ reservations, isMobile, onTableClick }: FloorViewProps) {

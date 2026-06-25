@@ -9,7 +9,7 @@ interface TableButtonProps {
   def: TableDef
   reservations: Reservation[]
   isMobile?: boolean
-  onTableClick: (tableId: string, resv?: Reservation) => void
+  onTableClick: (tableId: string, turn: 1 | 2 | 3 | null, resv?: Reservation) => void
 }
 
 export function TableButton({ def, reservations, isMobile, onTableClick }: TableButtonProps) {
@@ -28,7 +28,7 @@ export function TableButton({ def, reservations, isMobile, onTableClick }: Table
   return (
     <button
       type="button"
-      onClick={() => onTableClick(def.id, resv)}
+      onClick={() => onTableClick(def.id, null, resv)}
       title={`Table ${def.id} · seats ${def.capacity}${
         resv ? ` · ${resv.time} ${resv.name}` : ""
       }`}

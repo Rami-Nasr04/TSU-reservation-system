@@ -56,8 +56,8 @@ type Variant = "mobile" | "tablet" | "desktop"
 
 type ModalState =
   | { kind: "none" }
-  | { kind: "walkin"; tableId: string }
-  | { kind: "reservation"; tableId?: string; reservation?: Reservation }
+  | { kind: "walkin"; tableId: string; turn: 1 | 2 | 3 | null }
+  | { kind: "reservation"; tableId?: string; turn?: 1 | 2 | 3 | null; reservation?: Reservation }
   | { kind: "checkout"; reservation: Reservation }
 
 // ---------------------------------------------------------------------------
@@ -154,7 +154,7 @@ export default function DayBoard() {
     setModal(next)
   }
 
-  function handleTableClick(tableId: string, resv?: Reservation) {
+  function handleTableClick(tableId: string, turn: 1 | 2 | 3 | null, resv?: Reservation) {
     const isLive = resv && (resv.status === "booked" || resv.status === "seated")
     if (isLive) {
       // Existing reservations stay editable on any day so staff can clean up
@@ -172,11 +172,11 @@ export default function DayBoard() {
       return
     }
     if (todayView) {
-      openModal({ kind: "walkin", tableId })
+      openModal({ kind: "walkin", tableId, turn })
       return
     }
-    // Future day → new reservation seeded with this table.
-    openModal({ kind: "reservation", tableId })
+    // Future day → new reservation seeded with this table (and turn, if a grid cell).
+    openModal({ kind: "reservation", tableId, turn })
   }
 
   function handleReservationClick(resv: Reservation) {
@@ -372,6 +372,7 @@ export default function DayBoard() {
           onClose={closeModal}
           date={date}
           tableId={modal.tableId}
+          turn={modal.turn}
           feed={feed}
           onSave={handleSave}
         />
@@ -384,6 +385,7 @@ export default function DayBoard() {
           date={date}
           feed={feed}
           initialTableId={modal.tableId}
+          initialTurn={modal.turn}
           reservation={modal.reservation}
           readOnly={!writeOk}
           onSave={handleSave}
@@ -418,7 +420,7 @@ interface MobileBodyProps {
   drawerOpen: boolean
   onOpenDrawer: () => void
   onCloseDrawer: () => void
-  onTableClick: (tableId: string, resv?: Reservation) => void
+  onTableClick: (tableId: string, turn: 1 | 2 | 3 | null, resv?: Reservation) => void
   onReservationClick: (r: Reservation) => void
   onNewReservation: () => void
 }
