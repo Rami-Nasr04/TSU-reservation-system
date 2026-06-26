@@ -1,6 +1,7 @@
 import React from "react"
 import { cn } from "@/lib/utils"
 import { hhmmToMinutes, nowMinutes, formatDurationShort } from "@/lib/dates"
+import { isLiveOnFloor } from "@/lib/serviceFloor"
 import type { DayFeed } from "@/services/reservationsService"
 
 interface ServiceKpiStripProps {
@@ -86,16 +87,13 @@ export function ServiceKpiStrip({ feed, totalTables }: ServiceKpiStripProps) {
       avgTurnSub = "seated so far"
     }
 
-    // 5. Empty tables — seated tables are always occupied; booked tables only
-    // count as occupied when arrival is imminent (next 60 min, or already
-    // overdue). A 5pm booking at noon leaves the table usable for short walk-ins
-    // and earlier short bookings; a 5pm booking at 4:30pm correctly blocks it.
-    const BOOKING_BUFFER_MIN = 60
+    // 5. Empty tables — a table is occupied when a reservation is live on the
+    // floor right now (seated, or a booking arriving within ~60 min / just
+    // overdue). Shares isLiveOnFloor with the floor view so the count and the
+    // tiles can never disagree.
     const occupiedSet = new Set<string>()
     for (const r of feed.reservations) {
-      if (r.status === "seated") {
-        for (const t of r.tables) occupiedSet.add(t)
-      } else if (r.status === "booked" && hhmmToMinutes(r.time) <= nm + BOOKING_BUFFER_MIN) {
+      if (isLiveOnFloor(r, nm)) {
         for (const t of r.tables) occupiedSet.add(t)
       }
     }

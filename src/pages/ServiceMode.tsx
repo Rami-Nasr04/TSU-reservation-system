@@ -12,7 +12,8 @@ import { CheckoutDialog } from "@/components/reservations/CheckoutDialog"
 
 import { useDay } from "@/hooks/useDay"
 import { useFloorTables } from "@/contexts/TablesContext"
-import { formatDateISO, isPastDayLocked, isToday, parseDateISO, todayParts } from "@/lib/dates"
+import { formatDateISO, isPastDayLocked, isToday, nowMinutes, parseDateISO, todayParts } from "@/lib/dates"
+import { isLiveOnFloor } from "@/lib/serviceFloor"
 import { cn } from "@/lib/utils"
 import {
   bucketShift,
@@ -101,6 +102,14 @@ export default function ServiceMode() {
   const now = new Date()
   const liveShift = bucketShift(
     `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+  )
+
+  // Live floor shows only what's relevant *right now* — seated guests (any shift)
+  // plus imminent/just-overdue bookings — so a table reserved for tonight reads
+  // as free at lunch. Keeps the floor honest with the "Empty tables" KPI.
+  const liveFloorReservations = React.useMemo(
+    () => (feed ? feed.reservations.filter((r) => isLiveOnFloor(r, nowMinutes())) : []),
+    [feed],
   )
 
   function openModal(next: Exclude<ModalState, { kind: "none" }>) {
@@ -212,7 +221,7 @@ export default function ServiceMode() {
               )}
             >
               <FloorView
-                reservations={feed.reservations}
+                reservations={liveFloorReservations}
                 activeShift={liveShift}
                 onTableClick={handleTableClick}
               />

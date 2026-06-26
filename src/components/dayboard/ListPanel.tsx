@@ -34,6 +34,18 @@ export function ListPanel({ feed, activeShift, embedded, onReservationClick }: L
   const [query, setQuery] = React.useState("")
   const [filter, setFilter] = React.useState<StatusFilter>("all")
 
+  // Counter chips reflect the active shift (whole day on "All"), so the header
+  // agrees with the shift-filtered list below it instead of always showing day totals.
+  const counters = React.useMemo(() => {
+    const inShift = feed.reservations.filter((r) => matchesShift(r, activeShift))
+    return {
+      reservations: inShift.length,
+      guests: inShift.reduce((s, r) => s + r.pax, 0),
+      walkIns: inShift.filter((r) => r.isWalkIn).length,
+      seated: inShift.filter((r) => r.status === "seated").length,
+    }
+  }, [feed.reservations, activeShift])
+
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase()
     return feed.reservations.filter((r) => {
@@ -70,12 +82,12 @@ export function ListPanel({ feed, activeShift, embedded, onReservationClick }: L
           Today's service
         </Overline>
         <div className="mb-3 flex flex-wrap gap-1.5">
-          <CounterChip label="Reservations" value={feed.counters.reservations} accent />
-          <CounterChip label="Guests" value={feed.counters.guests} />
-          <CounterChip label="Walk-ins" value={feed.counters.walkIns} />
+          <CounterChip label="Reservations" value={counters.reservations} accent />
+          <CounterChip label="Guests" value={counters.guests} />
+          <CounterChip label="Walk-ins" value={counters.walkIns} />
           <CounterChip
             label="Seated"
-            value={feed.counters.seated}
+            value={counters.seated}
             dotColor="var(--brand-red)"
           />
         </div>
