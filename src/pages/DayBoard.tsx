@@ -116,6 +116,19 @@ function useMergedFeed(
   }, [data, localReservations])
 }
 
+/**
+ * Reservations a shift tab should show on the floor. A specific tab shows only
+ * its own shift; "All" shows everything together. Keeps the floor aligned with
+ * the list panel (which already filters this way) so an afternoon booking never
+ * lights up a table while the Lunch tab is active.
+ */
+function shiftReservations(
+  reservations: Reservation[],
+  shift: ActiveShift,
+): Reservation[] {
+  return shift === "all" ? reservations : reservations.filter((r) => r.shift === shift)
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -355,7 +368,7 @@ export default function DayBoard() {
               </div>
               <div className="min-h-0 rounded-[3px] border border-hair bg-card p-4 lg:p-5">
                 <FloorView
-                  reservations={feed.reservations}
+                  reservations={shiftReservations(feed.reservations, activeShift)}
                   activeShift={activeShift}
                   onTableClick={handleTableClick}
                 />
@@ -439,18 +452,19 @@ function MobileBody({
   onReservationClick,
   onNewReservation,
 }: MobileBodyProps) {
+  const floorReservations = shiftReservations(feed.reservations, activeShift)
   return (
     <div className="relative flex flex-1 flex-col min-h-0">
       <main className="m-3 flex-1 min-h-0 overflow-auto rounded-[3px] border border-hair bg-card p-3 pb-20">
         <FloorView
-          reservations={feed.reservations}
+          reservations={floorReservations}
           isMobile
           activeShift={activeShift}
           onTableClick={onTableClick}
         />
       </main>
       <MobileListTrigger
-        count={feed.reservations.length}
+        count={floorReservations.length}
         onClick={onOpenDrawer}
       />
       <Drawer
