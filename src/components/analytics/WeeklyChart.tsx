@@ -3,13 +3,13 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts"
 import type { WeeklyBucket } from "@/services/analyticsService"
 import { AnalyticsCard } from "./AnalyticsCard"
+import { ChartFrame } from "./ChartFrame"
 import { formatCurrency } from "./format"
 import {
   AXIS_TICK,
@@ -35,9 +35,9 @@ export function WeeklyChart({ data }: WeeklyChartProps) {
         </div>
       }
     >
-      <div className="h-[230px] sm:h-[280px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 12, right: 8, left: -16, bottom: 0 }}>
+      <ChartFrame className="h-[230px] sm:h-[280px]">
+        {({ width, height }) => (
+          <ComposedChart width={width} height={height} data={data} margin={{ top: 12, right: 8, left: -16, bottom: 0 }}>
             <CartesianGrid stroke={GRID_STROKE} vertical={false} />
             <XAxis
               dataKey="day"
@@ -89,8 +89,8 @@ export function WeeklyChart({ data }: WeeklyChartProps) {
               activeDot={{ r: 4.5 }}
             />
           </ComposedChart>
-        </ResponsiveContainer>
-      </div>
+        )}
+      </ChartFrame>
     </AnalyticsCard>
   )
 }

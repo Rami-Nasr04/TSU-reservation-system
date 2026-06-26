@@ -10,7 +10,7 @@ import type {
   ReservationInput,
 } from "@/services/reservationsService"
 import { useFloorTables } from "@/contexts/TablesContext"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { MergeField } from "./MergeField"
 
 const QUICK_PAX = [1, 2, 3, 4, 5, 6] as const
@@ -139,12 +139,12 @@ export function WalkInDialog({
                 Fast entry
               </span>
             </div>
-            <h2 className="text-[22px] sm:text-[24px] font-normal tracking-[0.02em] leading-[1.1] text-foreground">
+            <DialogTitle className="text-[22px] sm:text-[24px] font-normal tracking-[0.02em] leading-[1.1] text-foreground">
               Walk-in
-            </h2>
-            <p className="mt-1.5 text-[12px] tracking-[0.04em] text-brand-ink-soft">
+            </DialogTitle>
+            <DialogDescription className="mt-1.5 text-[12px] tracking-[0.04em] text-brand-ink-soft">
               {subtitle}
-            </p>
+            </DialogDescription>
           </div>
           <button
             type="button"

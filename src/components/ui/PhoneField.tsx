@@ -12,9 +12,11 @@ interface PhoneFieldProps {
   value: string
   onChange: (e164: string) => void
   disabled?: boolean
+  /** Applied to the national-number input so an external <label htmlFor> can associate. */
+  id?: string
 }
 
-export function PhoneField({ value, onChange, disabled }: PhoneFieldProps) {
+export function PhoneField({ value, onChange, disabled, id }: PhoneFieldProps) {
   // Seed once from the incoming E.164 (modals remount via key — no sync effect needed).
   const [country, setCountry] = React.useState<CountryCode>(() => parseE164(value).country)
   const [national, setNational] = React.useState<string>(() => parseE164(value).national)
@@ -150,6 +152,7 @@ export function PhoneField({ value, onChange, disabled }: PhoneFieldProps) {
         <span className="h-5 w-px shrink-0 bg-hair-strong" />
 
         <input
+          id={id}
           type="tel"
           inputMode="tel"
           value={national}

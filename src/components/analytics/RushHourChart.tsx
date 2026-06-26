@@ -3,13 +3,13 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts"
 import type { RushHourBucket } from "@/services/analyticsService"
 import { AnalyticsCard } from "./AnalyticsCard"
+import { ChartFrame } from "./ChartFrame"
 import {
   AXIS_TICK,
   AXIS_TICK_MUTE,
@@ -36,9 +36,9 @@ export function RushHourChart({ data }: RushHourChartProps) {
 
   return (
     <AnalyticsCard title="Rush Hour" subtitle={subtitle}>
-      <div className="h-[220px] sm:h-[260px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
+      <ChartFrame className="h-[220px] sm:h-[260px]">
+        {({ width, height }) => (
+          <BarChart width={width} height={height} data={data} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
             <CartesianGrid stroke={GRID_STROKE} vertical={false} />
             <XAxis
               dataKey="hour"
@@ -71,8 +71,8 @@ export function RushHourChart({ data }: RushHourChartProps) {
               ))}
             </Bar>
           </BarChart>
-        </ResponsiveContainer>
-      </div>
+        )}
+      </ChartFrame>
     </AnalyticsCard>
   )
 }

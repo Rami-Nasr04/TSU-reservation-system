@@ -102,7 +102,7 @@ export function AddCustomerDialog({
               <Label htmlFor="cust-phone" className={fieldLabel}>
                 Phone
               </Label>
-              <PhoneField value={phone} onChange={setPhone} disabled={saving} />
+              <PhoneField id="cust-phone" value={phone} onChange={setPhone} disabled={saving} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cust-email" className={fieldLabel}>
