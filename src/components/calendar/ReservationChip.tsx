@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { formatTime12 } from "@/lib/dates"
 import type { ReservationItem } from "@/services/reservationsService"
 
 interface ReservationChipProps {
@@ -26,7 +27,7 @@ export function ReservationChip({
           muted ? "text-brand-ink-mute" : "text-primary",
         )}
       >
-        {item.time}
+        {formatTime12(item.time)}
       </span>
       <span>{item.name}</span>
     </div>

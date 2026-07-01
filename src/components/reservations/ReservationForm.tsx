@@ -19,7 +19,7 @@ import { DayPicker } from "react-day-picker"
 import "react-day-picker/style.css"
 
 import { cn } from "@/lib/utils"
-import { formatDateISO, isPastDayLocked, parseDateISO, reservationTimeSlots } from "@/lib/dates"
+import { formatDateISO, formatTime12, isPastDayLocked, parseDateISO, reservationTimeSlots } from "@/lib/dates"
 import { usePopoverScrollFix } from "@/lib/popoverScroll"
 import { usesTurns, defaultTurnForTime, turnsForShift, turnStartTime, type TurnId } from "@/lib/turns"
 import { checkMergeAvailability } from "@/lib/reservationConflicts"
@@ -825,7 +825,7 @@ function TimeField({ value, onChange, slots, shift, disabled }: TimeFieldProps) 
           >
             <Clock className="size-[14px] text-brand-ink-soft" strokeWidth={1.4} />
             <span className="text-[13px] font-light tracking-[0.02em] text-foreground">
-              {value}
+              {formatTime12(value)}
             </span>
             <span className="ml-auto text-[10.5px] tracking-[0.04em] text-brand-ink-mute">
               15-min steps
@@ -857,7 +857,7 @@ function TimeField({ value, onChange, slots, shift, disabled }: TimeFieldProps) 
                   s === value && "bg-foreground/[0.05] text-foreground",
                 )}
               >
-                {s}
+                {formatTime12(s)}
               </button>
             ))}
           </PopoverPrimitive.Content>
@@ -1502,7 +1502,7 @@ function ConfirmDelete({
             </div>
             <div className="mt-1 text-[12.5px] leading-relaxed font-light text-brand-ink-soft">
               <span className="font-normal text-foreground">
-                {reservation.name} · {reservation.time} · {reservation.pax} guests
+                {reservation.name} · {formatTime12(reservation.time)} · {reservation.pax} guests
               </span>{" "}
               will be marked cancelled. The guest won't be notified.
             </div>

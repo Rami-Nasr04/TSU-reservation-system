@@ -8,6 +8,7 @@ import {
   YAxis,
 } from "recharts"
 import type { RushHourBucket } from "@/services/analyticsService"
+import { formatTime12 } from "@/lib/dates"
 import { AnalyticsCard } from "./AnalyticsCard"
 import { ChartFrame } from "./ChartFrame"
 import {
@@ -31,7 +32,7 @@ export function RushHourChart({ data }: RushHourChartProps) {
   )
   const hasData = data.some((d) => d.count > 0)
   const subtitle = hasData
-    ? `Reservations per hour · peak ${peak.hour}:00 (${peak.count})`
+    ? `Reservations per hour · peak ${formatTime12(`${peak.hour}:00`)} (${peak.count})`
     : "Reservations per hour"
 
   return (
@@ -45,7 +46,7 @@ export function RushHourChart({ data }: RushHourChartProps) {
               axisLine={false}
               tickLine={false}
               tick={AXIS_TICK}
-              tickFormatter={(h: number) => `${h}:00`}
+              tickFormatter={(h: number) => formatTime12(`${h}:00`)}
             />
             <YAxis
               axisLine={false}
@@ -59,7 +60,7 @@ export function RushHourChart({ data }: RushHourChartProps) {
               contentStyle={TOOLTIP_CONTENT_STYLE}
               labelStyle={TOOLTIP_LABEL_STYLE}
               formatter={(value) => [`${value} res.`, "Reservations"]}
-              labelFormatter={(h) => `${h}:00`}
+              labelFormatter={(h) => formatTime12(`${h}:00`)}
             />
             <Bar dataKey="count" radius={[2, 2, 0, 0]}>
               {data.map((d) => (

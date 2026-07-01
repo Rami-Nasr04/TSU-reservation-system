@@ -1,6 +1,6 @@
 import { Crown } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { hhmmToMinutes, nowMinutes, formatDurationShort } from "@/lib/dates"
+import { formatTime12, hhmmToMinutes, nowMinutes, formatDurationShort } from "@/lib/dates"
 import type { DayFeed, Reservation } from "@/services/reservationsService"
 
 interface ServiceQueueListProps {
@@ -51,7 +51,7 @@ function ResRow({ r, kind, accent, accentBar, onClick }: ResRowProps) {
           accent,
         )}
       >
-        {r.time}
+        {formatTime12(r.time)}
       </span>
 
       {/* Middle: name + meta */}

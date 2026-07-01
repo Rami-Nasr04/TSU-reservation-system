@@ -1,6 +1,6 @@
 import type { RecentWalkIn } from "@/services/analyticsService"
 import { cn } from "@/lib/utils"
-import { parseDateISO } from "@/lib/dates"
+import { formatTime12, parseDateISO } from "@/lib/dates"
 import { AnalyticsCard } from "./AnalyticsCard"
 
 interface RecentWalkInsListProps {
@@ -26,7 +26,7 @@ export function RecentWalkInsList({ data }: RecentWalkInsListProps) {
               )}
             >
               <span className="w-12 shrink-0 text-[13px] tracking-[0.04em] text-primary tabular-nums">
-                {w.time}
+                {formatTime12(w.time)}
               </span>
               <span className="flex min-w-0 flex-1 items-baseline gap-2">
                 <span className="truncate text-[13px] tracking-[0.02em] text-foreground">

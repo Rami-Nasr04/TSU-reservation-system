@@ -24,10 +24,12 @@ function LiveClock({ feed }: { feed: DayFeed | null }) {
     return () => clearInterval(id)
   }, [])
 
-  const hh = String(now.getHours()).padStart(2, "0")
+  const h = now.getHours()
+  const ap = h < 12 ? "am" : "pm"
+  const h12 = h % 12 === 0 ? 12 : h % 12
   const mm = String(now.getMinutes()).padStart(2, "0")
   const ss = String(now.getSeconds()).padStart(2, "0")
-  const timeStr = `${hh}:${mm}:${ss}`
+  const timeStr = `${h12}:${mm}:${ss}${ap}`
 
   // Next upcoming booked reservation from now
   const nm = nowMinutes()
