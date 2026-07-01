@@ -56,7 +56,7 @@ type Variant = "mobile" | "tablet" | "desktop"
 
 type ModalState =
   | { kind: "none" }
-  | { kind: "walkin"; tableId: string; turn: 1 | 2 | 3 | null }
+  | { kind: "walkin"; tableId?: string; turn: 1 | 2 | 3 | null }
   | { kind: "reservation"; tableId?: string; turn?: 1 | 2 | 3 | null; reservation?: Reservation }
   | { kind: "checkout"; reservation: Reservation }
 
