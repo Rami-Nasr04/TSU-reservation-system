@@ -15,9 +15,11 @@ interface FloorViewProps {
   /** Active shift tab — drives whether the Indoor slot shows the late-dinner turn grid. */
   activeShift: ActiveShift
   onTableClick: (tableId: string, turn: 1 | 2 | 3 | null, resv?: Reservation) => void
+  canWalkIn: boolean
+  onTableHold: (tableId: string, turn: 1 | 2 | 3 | null) => void
 }
 
-export function FloorView({ reservations, isMobile, activeShift, onTableClick }: FloorViewProps) {
+export function FloorView({ reservations, isMobile, activeShift, onTableClick, canWalkIn, onTableHold }: FloorViewProps) {
   const { bySection } = useFloorTables()
   const [section, setSection] = React.useState<FloorViewSection>("indoor")
 
@@ -54,7 +56,9 @@ export function FloorView({ reservations, isMobile, activeShift, onTableClick }:
                   tables={indoor}
                   reservations={reservations}
                   isMobile={isMobile}
+                  canWalkIn={canWalkIn}
                   onTableClick={onTableClick}
+                  onTableHold={onTableHold}
                 />
               ) : (
                 <TablesSection
@@ -63,7 +67,9 @@ export function FloorView({ reservations, isMobile, activeShift, onTableClick }:
                   tables={indoor}
                   reservations={reservations}
                   isMobile={isMobile}
+                  canWalkIn={canWalkIn}
                   onTableClick={onTableClick}
+                  onTableHold={onTableHold}
                 />
               )}
             </div>
@@ -76,7 +82,9 @@ export function FloorView({ reservations, isMobile, activeShift, onTableClick }:
                 tables={terrace}
                 reservations={reservations}
                 isMobile={isMobile}
+                canWalkIn={canWalkIn}
                 onTableClick={onTableClick}
+                onTableHold={onTableHold}
               />
             </div>
           )}

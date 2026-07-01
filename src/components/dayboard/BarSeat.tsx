@@ -15,7 +15,6 @@ export function BarSeat({ seatId, reservations, onTableClick }: BarSeatProps) {
     free:      "bg-card border border-dashed border-hair-strong text-brand-ink-soft",
     booked:    "bg-card border border-amber-700 dark:border-amber-300 text-foreground",
     seated:    "bg-primary/10 border-[1.5px] border-primary text-foreground",
-    completed: "bg-foreground/[0.025] border border-hair text-brand-ink-mute line-through",
   }
 
   return (
