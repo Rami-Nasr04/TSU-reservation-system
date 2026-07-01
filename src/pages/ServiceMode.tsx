@@ -132,6 +132,10 @@ export default function ServiceMode() {
       openModal({ kind: "reservation", tableId, reservation: resv })
       return
     }
+    if (!writeOk) {
+      toast.info("View-only access")
+      return
+    }
     // Free table — tap always books (today and future). Hold gesture → walk-in.
     if (isPastDayLocked(date, feed)) {
       toast.info("Past day — view only.")
