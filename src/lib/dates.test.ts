@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import type { DayFeed, Reservation } from "@/services/reservationsService"
-import { operationalDate, isPastDayLocked } from "./dates"
+import { operationalDate, isPastDayLocked, formatTime12 } from "./dates"
 
 function makeReservation(status: Reservation["status"]): Reservation {
   return {
@@ -86,5 +86,27 @@ describe("isPastDayLocked", () => {
     const at0300 = new Date(2026, 4, 25, 3, 0, 0) // operational = 2026-05-24
     const feed = makeFeed("2026-05-24", [makeReservation("seated")])
     expect(isPastDayLocked("2026-05-24", feed, at0300)).toBe(false)
+  })
+})
+
+describe("formatTime12", () => {
+  it("drops :00 on whole hours", () => {
+    expect(formatTime12("15:00")).toBe("3pm")
+    expect(formatTime12("09:00")).toBe("9am")
+  })
+  it("keeps minutes on non-whole hours", () => {
+    expect(formatTime12("19:30")).toBe("7:30pm")
+    expect(formatTime12("12:15")).toBe("12:15pm")
+  })
+  it("handles noon and midnight", () => {
+    expect(formatTime12("12:00")).toBe("12pm")
+    expect(formatTime12("00:00")).toBe("12am")
+    expect(formatTime12("00:30")).toBe("12:30am")
+  })
+  it("handles last seating and close", () => {
+    expect(formatTime12("23:00")).toBe("11pm")
+  })
+  it("accepts an unpadded hour", () => {
+    expect(formatTime12("9:00")).toBe("9am")
   })
 })
