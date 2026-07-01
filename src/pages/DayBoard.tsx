@@ -5,10 +5,10 @@ import { MonitorPlay } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { canWrite } from "@/lib/auth"
 import { AppShell } from "@/components/layout/AppShell"
-import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { BackLink } from "@/components/dayboard/BackLink"
 import { DateStepper } from "@/components/dayboard/DateStepper"
 import { NewReservationButton } from "@/components/dayboard/NewReservationButton"
+import { WalkInButton } from "@/components/dayboard/WalkInButton"
 import { ShiftTabs } from "@/components/dayboard/ShiftTabs"
 import type { ActiveShift } from "@/components/dayboard/ShiftTabs"
 import { ListPanel } from "@/components/dayboard/ListPanel"
@@ -291,7 +291,9 @@ export default function DayBoard() {
       {!past && writeOk && (
         <NewReservationButton isMobile={isMobile} onClick={handleNewReservation} />
       )}
-      <ThemeToggle />
+      {canWalkIn && (
+        <WalkInButton isMobile={isMobile} onClick={() => openModal({ kind: "walkin", turn: null })} />
+      )}
     </>
   )
 
