@@ -2,7 +2,6 @@ import * as React from "react"
 import { Navigate } from "react-router-dom"
 
 import { AppShell } from "@/components/layout/AppShell"
-import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { KpiCard } from "@/components/analytics/KpiCard"
 import { RangePicker } from "@/components/analytics/RangePicker"
 import { RushHourChart } from "@/components/analytics/RushHourChart"
@@ -37,7 +36,6 @@ export default function Analytics() {
   const headerActions = (
     <>
       <RangePicker value={range} onChange={setRange} />
-      <ThemeToggle />
     </>
   )
 

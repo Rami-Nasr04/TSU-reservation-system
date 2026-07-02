@@ -2,7 +2,6 @@ import * as React from "react"
 import { Navigate } from "react-router-dom"
 
 import { AppShell } from "@/components/layout/AppShell"
-import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { TablesPanel } from "@/components/settings/TablesPanel"
 import { StaffPanel } from "@/components/settings/StaffPanel"
 import { useTables } from "@/hooks/useTables"
@@ -34,7 +33,7 @@ export default function Settings() {
   )
 
   return (
-    <AppShell headerCenter={headerCenter} headerActions={<ThemeToggle />} bare>
+    <AppShell headerCenter={headerCenter} bare>
       <div className="mx-auto w-full max-w-[1080px] px-3.5 py-4 sm:px-6 sm:py-7">
         {/* Underline tabs */}
         <div className="mb-5 flex items-center gap-1 border-b border-hair">
