@@ -6,7 +6,9 @@ import {
   ChevronDown,
   LogOut,
   MonitorPlay,
+  Moon,
   Settings,
+  Sun,
   Users,
 } from "lucide-react"
 import {
@@ -21,6 +23,7 @@ import { cn } from "@/lib/utils"
 import { operationalDate } from "@/lib/dates"
 import { useAuth, type UserRole } from "@/contexts/AuthContext"
 import { canWrite } from "@/lib/auth"
+import { useTheme } from "@/contexts/ThemeContext"
 
 interface AvatarMenuProps {
   className?: string
@@ -41,6 +44,7 @@ function initialsOf(name: string): string {
 export function AvatarMenu({ className }: AvatarMenuProps) {
   const navigate = useNavigate()
   const { user, userGroups, signOut, hasRole } = useAuth()
+  const { theme, toggle } = useTheme()
   if (!user) return null
   const role = userGroups[0]
   const isManager = hasRole("manager")
@@ -107,6 +111,16 @@ export function AvatarMenu({ className }: AvatarMenuProps) {
             <span>Settings</span>
           </DropdownMenuItem>
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault()
+            toggle()
+          }}
+        >
+          {theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+          <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => signOut()}

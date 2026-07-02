@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { formatTime12 } from "@/lib/dates"
 import type { Reservation } from "@/services/reservationsService"
 import { deriveCellState, type CellState } from "./cellState"
 
@@ -15,14 +16,13 @@ export function BarSeat({ seatId, reservations, onTableClick }: BarSeatProps) {
     free:      "bg-card border border-dashed border-hair-strong text-brand-ink-soft",
     booked:    "bg-card border border-amber-700 dark:border-amber-300 text-foreground",
     seated:    "bg-primary/10 border-[1.5px] border-primary text-foreground",
-    completed: "bg-foreground/[0.025] border border-hair text-brand-ink-mute line-through",
   }
 
   return (
     <button
       type="button"
       onClick={() => onTableClick(seatId, null, resv)}
-      title={`Bar ${seatId}${resv ? ` · ${resv.time} ${resv.name}` : ""}`}
+      title={`Bar ${seatId}${resv ? ` · ${formatTime12(resv.time)} ${resv.name}` : ""}`}
       className={cn(
         "relative inline-flex size-11 items-center justify-center rounded-full",
         "text-[13px] font-normal tracking-[0.02em]",

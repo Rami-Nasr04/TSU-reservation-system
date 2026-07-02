@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { toast } from "sonner"
 
 import { AppShell } from "@/components/layout/AppShell"
-import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { KpiStrip } from "@/components/calendar/KpiStrip"
 import { Legend } from "@/components/calendar/Legend"
 import { MonthGrid } from "@/components/calendar/MonthGrid"
@@ -88,7 +87,6 @@ export default function Calendar() {
           <Search className="size-3.5 sm:size-4" />
         </IconButton>
       )}
-      <ThemeToggle />
     </>
   )
 

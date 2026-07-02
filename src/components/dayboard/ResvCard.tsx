@@ -1,6 +1,7 @@
 import { ChevronRight, Crown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { formatTime12 } from "@/lib/dates"
 import { StatusBadge } from "./StatusBadge"
 import { STATUS_STYLE } from "./statusStyle"
 import type { Reservation } from "@/services/reservationsService"
@@ -32,7 +33,7 @@ export function ResvCard({ reservation: r, onReservationClick }: ResvCardProps) 
       <div className="flex-1 min-w-0">
         <div className="mb-1 flex items-baseline gap-2.5">
           <span className="text-[17px] font-normal leading-none tracking-[0.02em] text-foreground">
-            {r.time}
+            {formatTime12(r.time)}
           </span>
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
             <span className="truncate text-[13.5px] font-normal tracking-[0.02em] text-foreground">

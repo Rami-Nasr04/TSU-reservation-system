@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { formatTime12 } from "@/lib/dates"
 import { StatusBadge } from "@/components/dayboard/StatusBadge"
 import type { ReservationHistoryItem } from "@/services/customersService"
 import { formatDayLabel, formatMoney } from "./format"
@@ -46,7 +47,7 @@ export function HistoryTable({ items, isLoading, error }: HistoryTableProps) {
             {formatDayLabel(h.date)}
           </span>
           <span className="w-[42px] shrink-0 text-[12.5px] tabular-nums text-foreground">
-            {h.time}
+            {formatTime12(h.time)}
           </span>
           <span className="min-w-0 flex-1 truncate text-[11.5px] text-brand-ink-soft">
             {h.tables.length ? h.tables.join(" + ") : "—"} · PAX {h.pax}

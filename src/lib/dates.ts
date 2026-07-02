@@ -194,3 +194,17 @@ export function formatDurationShort(mins: number): string {
   if (m === 0) return `${h}h`
   return `${h}h ${m}m`
 }
+
+/**
+ * Display-only 12-hour label from canonical 24h "HH:mm".
+ * Whole hours drop the minutes ("15:00" → "3pm"); otherwise keep them
+ * ("19:30" → "7:30pm"). Lowercase am/pm, no space. Storage stays 24h.
+ */
+export function formatTime12(hhmm: string): string {
+  const [hStr, mStr] = hhmm.split(":")
+  const h = Number(hStr)
+  const m = Number(mStr)
+  const ap = h < 12 ? "am" : "pm"
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return m === 0 ? `${h12}${ap}` : `${h12}:${String(m).padStart(2, "0")}${ap}`
+}

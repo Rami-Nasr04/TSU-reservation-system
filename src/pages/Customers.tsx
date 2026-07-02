@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom"
 import { Plus, Search } from "lucide-react"
 
 import { AppShell } from "@/components/layout/AppShell"
-import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { CustomerList } from "@/components/customers/CustomerList"
 import { CustomerDrawer } from "@/components/customers/CustomerDrawer"
 import { FilterPills } from "@/components/customers/FilterPills"
@@ -121,7 +120,6 @@ export default function Customers() {
         <span className="hidden sm:inline">New customer</span>
         <span className="sm:hidden">New</span>
       </button>
-      <ThemeToggle />
     </>
   )
 

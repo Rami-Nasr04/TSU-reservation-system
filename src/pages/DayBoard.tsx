@@ -5,10 +5,10 @@ import { MonitorPlay } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { canWrite } from "@/lib/auth"
 import { AppShell } from "@/components/layout/AppShell"
-import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { BackLink } from "@/components/dayboard/BackLink"
 import { DateStepper } from "@/components/dayboard/DateStepper"
 import { NewReservationButton } from "@/components/dayboard/NewReservationButton"
+import { WalkInButton } from "@/components/dayboard/WalkInButton"
 import { ShiftTabs } from "@/components/dayboard/ShiftTabs"
 import type { ActiveShift } from "@/components/dayboard/ShiftTabs"
 import { ListPanel } from "@/components/dayboard/ListPanel"
@@ -56,7 +56,7 @@ type Variant = "mobile" | "tablet" | "desktop"
 
 type ModalState =
   | { kind: "none" }
-  | { kind: "walkin"; tableId: string; turn: 1 | 2 | 3 | null }
+  | { kind: "walkin"; tableId?: string; turn: 1 | 2 | 3 | null }
   | { kind: "reservation"; tableId?: string; turn?: 1 | 2 | 3 | null; reservation?: Reservation }
   | { kind: "checkout"; reservation: Reservation }
 
@@ -157,6 +157,7 @@ export default function DayBoard() {
   const feed = useMergedFeed(data, localReservations)
   const isEmpty = !!feed && feed.reservations.length === 0
   const past = isPastDayLocked(date, feed)
+  const canWalkIn = writeOk && todayView && !past
 
   function goDay(delta: number) {
     navigate(`/day/${shiftDateISO(date, delta)}`)
@@ -175,7 +176,6 @@ export default function DayBoard() {
       openModal({ kind: "reservation", tableId, reservation: resv })
       return
     }
-    // Free table — gate by role first, then by date.
     if (!writeOk) {
       toast.info("View-only access")
       return
@@ -184,12 +184,14 @@ export default function DayBoard() {
       toast.info("Past day — view only.")
       return
     }
-    if (todayView) {
-      openModal({ kind: "walkin", tableId, turn })
-      return
-    }
-    // Future day → new reservation seeded with this table (and turn, if a grid cell).
+    // Free table → booking (today and future). Walk-ins are the hold gesture.
     openModal({ kind: "reservation", tableId, turn })
+  }
+
+  // Press-and-hold a free table (today, write access) → walk-in on that table/turn.
+  function handleTableHold(tableId: string, turn: 1 | 2 | 3 | null) {
+    if (!writeOk || past || !todayView) return
+    openModal({ kind: "walkin", tableId, turn })
   }
 
   function handleReservationClick(resv: Reservation) {
@@ -289,7 +291,9 @@ export default function DayBoard() {
       {!past && writeOk && (
         <NewReservationButton isMobile={isMobile} onClick={handleNewReservation} />
       )}
-      <ThemeToggle />
+      {canWalkIn && (
+        <WalkInButton isMobile={isMobile} onClick={() => openModal({ kind: "walkin", turn: null })} />
+      )}
     </>
   )
 
@@ -338,6 +342,8 @@ export default function DayBoard() {
               onOpenDrawer={() => setDrawerOpen(true)}
               onCloseDrawer={() => setDrawerOpen(false)}
               onTableClick={handleTableClick}
+              onTableHold={handleTableHold}
+              canWalkIn={canWalkIn}
               onReservationClick={handleReservationClick}
               onNewReservation={handleNewReservation}
             />
@@ -371,6 +377,8 @@ export default function DayBoard() {
                   reservations={shiftReservations(feed.reservations, activeShift)}
                   activeShift={activeShift}
                   onTableClick={handleTableClick}
+                  canWalkIn={canWalkIn}
+                  onTableHold={handleTableHold}
                 />
               </div>
             </main>
@@ -435,6 +443,8 @@ interface MobileBodyProps {
   onOpenDrawer: () => void
   onCloseDrawer: () => void
   onTableClick: (tableId: string, turn: 1 | 2 | 3 | null, resv?: Reservation) => void
+  onTableHold: (tableId: string, turn: 1 | 2 | 3 | null) => void
+  canWalkIn: boolean
   onReservationClick: (r: Reservation) => void
   onNewReservation: () => void
 }
@@ -449,6 +459,8 @@ function MobileBody({
   onOpenDrawer,
   onCloseDrawer,
   onTableClick,
+  onTableHold,
+  canWalkIn,
   onReservationClick,
   onNewReservation,
 }: MobileBodyProps) {
@@ -461,6 +473,8 @@ function MobileBody({
           isMobile
           activeShift={activeShift}
           onTableClick={onTableClick}
+          canWalkIn={canWalkIn}
+          onTableHold={onTableHold}
         />
       </main>
       <MobileListTrigger

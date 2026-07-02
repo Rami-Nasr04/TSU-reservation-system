@@ -10,6 +10,8 @@ import { WalkInDialog } from "@/components/reservations/WalkInDialog"
 import { ReservationForm } from "@/components/reservations/ReservationForm"
 import { CheckoutDialog } from "@/components/reservations/CheckoutDialog"
 
+import { useAuth } from "@/contexts/AuthContext"
+import { canWrite } from "@/lib/auth"
 import { useDay } from "@/hooks/useDay"
 import { useFloorTables } from "@/contexts/TablesContext"
 import { formatDateISO, isPastDayLocked, isToday, nowMinutes, parseDateISO, todayParts } from "@/lib/dates"
@@ -85,6 +87,8 @@ function useMergedFeed(
 export default function ServiceMode() {
   const { date: dateParam } = useParams()
   const navigate = useNavigate()
+  const { userGroups } = useAuth()
+  const writeOk = canWrite(userGroups)
   const date = safeDate(dateParam)
   const { data, isLoading } = useDay(date)
   const { tables } = useFloorTables()
@@ -95,6 +99,7 @@ export default function ServiceMode() {
   const [localReservations, setLocalReservations] = React.useState<Reservation[]>([])
 
   const feed = useMergedFeed(data, localReservations)
+  const canWalkIn = writeOk && isToday(date) && !isPastDayLocked(date, feed)
 
   // Service Mode is the live "now" board — derive the active shift from the wall
   // clock so the Indoor turn grid surfaces during late dinner (and lunch/afternoon
@@ -127,16 +132,22 @@ export default function ServiceMode() {
       openModal({ kind: "reservation", tableId, reservation: resv })
       return
     }
-    // Free table — gate walk-ins to today, allow new reservation on future days.
+    if (!writeOk) {
+      toast.info("View-only access")
+      return
+    }
+    // Free table — tap always books (today and future). Hold gesture → walk-in.
     if (isPastDayLocked(date, feed)) {
       toast.info("Past day — view only.")
       return
     }
-    if (isToday(date)) {
-      openModal({ kind: "walkin", tableId, turn })
-      return
-    }
     openModal({ kind: "reservation", tableId, turn })
+  }
+
+  // Press-and-hold a free table (today, write access) → walk-in on that table/turn.
+  function handleTableHold(tableId: string, turn: 1 | 2 | 3 | null) {
+    if (!writeOk || isPastDayLocked(date, feed) || !isToday(date)) return
+    openModal({ kind: "walkin", tableId, turn })
   }
 
   function handleReservationClick(resv: Reservation) {
@@ -224,6 +235,8 @@ export default function ServiceMode() {
                 reservations={liveFloorReservations}
                 activeShift={liveShift}
                 onTableClick={handleTableClick}
+                canWalkIn={canWalkIn}
+                onTableHold={handleTableHold}
               />
             </section>
 

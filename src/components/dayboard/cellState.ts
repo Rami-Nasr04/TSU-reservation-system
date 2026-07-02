@@ -1,6 +1,6 @@
 import type { Reservation } from "@/services/reservationsService"
 
-export type CellState = "free" | "booked" | "seated" | "completed"
+export type CellState = "free" | "booked" | "seated"
 
 /**
  * Resolve the visual state for a table cell from the day's reservations.

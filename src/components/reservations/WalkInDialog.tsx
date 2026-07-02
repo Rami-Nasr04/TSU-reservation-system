@@ -12,6 +12,15 @@ import type {
 import { useFloorTables } from "@/contexts/TablesContext"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { MergeField } from "./MergeField"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const QUICK_PAX = [1, 2, 3, 4, 5, 6] as const
 
@@ -25,7 +34,8 @@ interface WalkInDialogProps {
   open: boolean
   onClose: () => void
   date: string
-  tableId: string
+  /** Pre-selected table (long-press path). When omitted an in-dialog picker is shown. */
+  tableId?: string
   /** Day feed — used to flag currently-seated siblings as Occupied in merge picker. */
   feed?: DayFeed | null
   /** Late-dinner seating turn from the tapped grid cell (null elsewhere). */
@@ -37,12 +47,16 @@ export function WalkInDialog({
   open,
   onClose,
   date,
-  tableId,
+  tableId: propTableId,
   feed,
   turn,
   onSave,
 }: WalkInDialogProps) {
-  const { getTable, getMergeableSiblings } = useFloorTables()
+  const { getTable, getMergeableSiblings, bySection } = useFloorTables()
+
+  // When a tableId prop is given (long-press path) seed from it; otherwise start empty.
+  const [tableId, setTableId] = React.useState<string>(propTableId ?? "")
+
   const table = getTable(tableId)
   const subtitle = table
     ? `${SECTION_LABEL[table.section] ?? table.section} · Table ${table.id} (seats ${table.capacity})`
@@ -50,8 +64,22 @@ export function WalkInDialog({
 
   const [pax, setPax] = React.useState(2)
   const [notes, setNotes] = React.useState("")
-  const [tables, setTables] = React.useState<string[]>([tableId])
+  const [tables, setTables] = React.useState<string[]>(propTableId ? [propTableId] : [])
   const [saving, setSaving] = React.useState(false)
+
+  // Tables currently held by a seated or booked reservation — excluded from the picker.
+  const heldIds = React.useMemo(() => {
+    const s = new Set<string>()
+    for (const r of feed?.reservations ?? []) {
+      if (r.status === "seated" || r.status === "booked") r.tables.forEach((t) => s.add(t))
+    }
+    return s
+  }, [feed])
+
+  const freeBySection = (["bar", "indoor", "terrace"] as const).map((sec) => ({
+    section: sec,
+    tables: bySection(sec, { activeOnly: true }).filter((t) => !heldIds.has(t.id)),
+  }))
 
   const siblings = React.useMemo(
     () => getMergeableSiblings(tableId),
@@ -76,12 +104,13 @@ export function WalkInDialog({
     if (saving) return
     setPax(2)
     setNotes("")
-    setTables([tableId])
+    setTableId(propTableId ?? "")
+    setTables(propTableId ? [propTableId] : [])
     onClose()
   }
 
   async function handleSave() {
-    if (saving) return
+    if (saving || !tableId) return
     const time = nowRounded15()
     const reservation: Reservation = {
       id: `walkin-${Date.now()}`,
@@ -142,9 +171,15 @@ export function WalkInDialog({
             <DialogTitle className="text-[22px] sm:text-[24px] font-normal tracking-[0.02em] leading-[1.1] text-foreground">
               Walk-in
             </DialogTitle>
-            <DialogDescription className="mt-1.5 text-[12px] tracking-[0.04em] text-brand-ink-soft">
-              {subtitle}
-            </DialogDescription>
+            {propTableId ? (
+              <DialogDescription className="mt-1.5 text-[12px] tracking-[0.04em] text-brand-ink-soft">
+                {subtitle}
+              </DialogDescription>
+            ) : (
+              <DialogDescription className="sr-only">
+                Select a table and seat a walk-in guest.
+              </DialogDescription>
+            )}
           </div>
           <button
             type="button"
@@ -164,7 +199,50 @@ export function WalkInDialog({
 
         {/* Body */}
         <div className="px-6 pb-3 pt-6 sm:px-7 sm:pt-7">
-          {/* Merge — only when the picked table has partners */}
+          {/* Table picker — only shown when no propTableId (header button path) */}
+          {!propTableId && (
+            <div className="mb-7">
+              <div className="mb-2 text-[10px] font-medium uppercase tracking-[0.22em] text-brand-ink-soft">
+                Table
+              </div>
+              <Select
+                value={tableId}
+                onValueChange={(v) => {
+                  setTableId(v)
+                  setTables([v])
+                }}
+                disabled={saving}
+              >
+                <SelectTrigger
+                  className={cn(
+                    "h-10 w-full rounded-[3px] border-hair-strong bg-card",
+                    "text-[13px] font-light tracking-[0.02em] text-foreground",
+                    "focus-visible:border-foreground focus-visible:ring-0",
+                  )}
+                >
+                  <SelectValue placeholder="Pick a table…" />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  {freeBySection.map(({ section, tables: sectionTables }) =>
+                    sectionTables.length > 0 ? (
+                      <SelectGroup key={section}>
+                        <SelectLabel className="text-[10px] font-medium uppercase tracking-[0.22em] text-brand-ink-mute">
+                          {SECTION_LABEL[section]}
+                        </SelectLabel>
+                        {sectionTables.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            #{t.id} · seats {t.capacity}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ) : null
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Merge — only when the selected table has mergeable partners */}
           {siblings.length > 0 && (
             <div className="mb-7">
               <MergeField
@@ -283,7 +361,7 @@ export function WalkInDialog({
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !tableId}
             className={cn(
               "flex-1 h-11 rounded-[3px] inline-flex items-center justify-center gap-2",
               "text-[11.5px] font-medium uppercase tracking-[0.22em]",
