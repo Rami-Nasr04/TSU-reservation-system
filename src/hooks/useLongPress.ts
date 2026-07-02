@@ -34,8 +34,8 @@ export function useLongPress({ enabled, onLongPress, ms = LONG_PRESS_MS }: UseLo
   }, [])
 
   const start = React.useCallback(() => {
-    if (!enabled) return
     firedRef.current = false
+    if (!enabled) return
     startRef.current = performance.now()
     const tick = () => {
       const elapsed = performance.now() - startRef.current
