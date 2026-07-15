@@ -582,12 +582,3 @@ export async function updateReservation(
   }
   return adaptRow(res.data)
 }
-
-export async function deleteReservation(id: string): Promise<void> {
-  const res = await apiFetch<{ deleted: boolean }>(`/reservations/${id}`, {
-    method: "DELETE",
-  })
-  if (!res.success) {
-    throw new Error(res.error?.message ?? "Failed to delete reservation")
-  }
-}

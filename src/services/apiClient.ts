@@ -58,6 +58,11 @@ export async function apiFetch<T>(
       // ProtectedRoute kicks the user back to /login.
       const user = userPool.getCurrentUser()
       user?.signOut()
+      // signOut() only clears localStorage — AuthContext's React state doesn't
+      // see it, so a long-lived tab (floor iPad) would stay stuck on a dead
+      // board. Broadcast so AuthContext resets state and ProtectedRoute
+      // redirects to /login.
+      window.dispatchEvent(new Event("tsu:session-expired"))
       return {
         success: false,
         error: {

@@ -92,11 +92,6 @@ export function isToday(iso: string): boolean {
   return iso === todayISO()
 }
 
-/** True when `iso` (YYYY-MM-DD) is strictly after today (local). */
-export function isFutureDate(iso: string): boolean {
-  return iso > todayISO()
-}
-
 /** Shift a (year, month0) by N months, returning the new pair. */
 export function shiftMonth(
   year: number,
