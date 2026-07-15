@@ -5,6 +5,7 @@ import {
   type CognitoUserSession,
   type IAuthenticationCallback,
 } from "amazon-cognito-identity-js"
+import { toast } from "sonner"
 import { userPool } from "@/lib/cognito"
 
 export type UserRole = "manager" | "supervisor" | "host" | "staff"
@@ -208,6 +209,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     cognitoUserRef.current = null
     newPasswordAttrsRef.current = null
   }, [])
+
+  // apiClient broadcasts this when a request 401s after the refresh attempt —
+  // the Cognito session is gone for good (e.g. refresh token expired). Without
+  // this reset a long-lived tab keeps `isAuthenticated` true and never reaches
+  // the /login redirect in ProtectedRoute.
+  React.useEffect(() => {
+    const onExpired = () => {
+      void signOut()
+      toast.error("Session expired — please sign in again.")
+    }
+    window.addEventListener("tsu:session-expired", onExpired)
+    return () => window.removeEventListener("tsu:session-expired", onExpired)
+  }, [signOut])
 
   const completeNewPassword = React.useCallback(
     (newPassword: string): Promise<SignInResult> => {
