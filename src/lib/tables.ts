@@ -56,11 +56,3 @@ const TABLE_INDEX = new Map(ALL_TABLES.map((t) => [t.id, t]))
 export function getTable(id: string): TableDef | undefined {
   return TABLE_INDEX.get(id)
 }
-
-export function getMergeableSiblings(id: string): string[] {
-  const def = getTable(id)
-  if (!def || !def.mergeableGroupId) return []
-  return ALL_TABLES.filter(
-    (t) => t.mergeableGroupId === def.mergeableGroupId && t.id !== id,
-  ).map((t) => t.id)
-}
