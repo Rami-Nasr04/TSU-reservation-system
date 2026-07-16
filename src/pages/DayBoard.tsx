@@ -154,6 +154,16 @@ export default function DayBoard() {
   const [modalRevision, setModalRevision] = React.useState(0)
   const [localReservations, setLocalReservations] = React.useState<Reservation[]>([])
 
+  // localReservations only bridges a save and the next refetch of the SAME day.
+  // A Reservation carries no date, so any row still held when the date changes
+  // ghost-renders onto the new day's board — and accumulates for the life of the
+  // tab. Drop them on every date change; useDay refetches the new day anyway.
+  const [prevDate, setPrevDate] = React.useState(date)
+  if (prevDate !== date) {
+    setPrevDate(date)
+    setLocalReservations([])
+  }
+
   const feed = useMergedFeed(data, localReservations)
   const isEmpty = !!feed && feed.reservations.length === 0
   const past = isPastDayLocked(date, feed)
